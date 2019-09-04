@@ -70,7 +70,7 @@ func TestUsage(t *testing.T) {
 		r.Close()
 	})
 
-	t.Run("one rule - 8000 parallel users", func(t *testing.T) {
+	t.Run("one rule - 8000 concurrent users", func(t *testing.T) {
 		// Create a store that will be checked more often than actually required by
 		// its period. So that we cover the case where the store is not always
 		// ready.
@@ -117,37 +117,56 @@ func TestUsage(t *testing.T) {
 		stopBarrier.Wait()         // Wait for the user goroutines to be done
 	})
 
-	t.Run("one concurrent updater - 8000 parallel users", func(t *testing.T) {
-		// Create a store that will be checked more often than actually required by
-		// its period. So that we cover the case where the store is not always
-		// ready.
-		r, err := waf.NewRule("rule-0", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
-		require.NoError(t, err)
+	t.Run("one concurrent updater - 8000 concurrent users", func(t *testing.T) {
+		userAgents := [...]string{"Arachni", "Toto", "Tata", "Titi"}
+		var (
+			currentUserAgentIndex int
+			ruleID                int
+			rule                  *waf.Rule
+			lock                  sync.RWMutex
+		)
+		updateRule := func() (previousRule *waf.Rule) {
+			lock.Lock()
+			defer lock.Unlock()
 
-		// The reader will be awaken 4 times per store period, so only it will see
-		// a ready store only once out of four.
+			// Select a random user agent
+			currentUserAgentIndex = rand.Intn(len(userAgents))
+			userAgent := userAgents[currentUserAgentIndex]
+			// Create a new rule id that was never used before
+			ruleIDStr := fmt.Sprintf("rule-%d", ruleID)
+			ruleID++
+			// Create a WAF rule with the selected user agent
+			wafRule := fmt.Sprintf(`{"rules": [{"rule_id": "1","filters": [{"operator": "@rx","targets": ["#._server['HTTP_USER_AGENT']"],"value": "%s"}]}],"flows": [{"name": "arachni_detection","steps": [{"id": "start","rule_ids": ["1"],"on_match": "exit_monitor"}]}]}`, userAgent)
+
+			// Save the current rule to return it in order to free it out of this
+			// locked section.
+			lastRule := rule
+
+			// Create the new rule
+			var err error
+			rule, err = waf.NewRule(ruleIDStr, wafRule)
+			require.NoError(t, err)
+			return lastRule
+		}
+
+		// Create a first rule it before starting the goroutines that will use it.
+		updateRule()
+
+		// The WAF rule will be updated once per second
 		updatePeriod := time.Second
 		tick := time.Tick(updatePeriod)
 
-		// Signal channel between this test and the reader to tear down the test
+		// Signal channel between this test and the updater to tear down the test
 		done := make(chan struct{})
-
-		userAgents := [...]string{"Arachni", "Toto", "Tata", "Titi"}
 
 		// One updater
 		go func() {
-			rid := 0
 			for {
 				select {
 				case <-tick:
-					userAgent := userAgents[rid%2] // 0 or 1
-					wafRule := fmt.Sprintf(`{"rules": [{"rule_id": "1","filters": [{"operator": "@rx","targets": ["#._server['HTTP_USER_AGENT']"],"value": "%s"}]}],"flows": [{"name": "arachni_detection","steps": [{"id": "start","rule_ids": ["1"],"on_match": "exit_monitor"}]}]}`, userAgent)
-					newRule, err := waf.NewRule(fmt.Sprintf("rule-%d", rid), wafRule)
-					rid++
-					require.NoError(t, err)
-					currentRule := r
-					atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&r)), unsafe.Pointer(newRule))
-					currentRule.Close()
+					prev := updateRule()
+					// Release the previous rule concurrently.
+					prev.Close()
 
 				case <-done:
 					// All goroutines are done: notify we are done too.
@@ -173,12 +192,21 @@ func TestUsage(t *testing.T) {
 				startBarrier.Wait()      // Sync the starts of the goroutines
 				defer stopBarrier.Done() // Signal we are done when returning
 				for c := 0; c < nbRun; c++ {
-					i := rand.Int() % len(userAgents)
-					rule := (*waf.Rule)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r))))
-					_, _, err := rule.Run(waf.RunInput{"#._server['HTTP_USER_AGENT']": userAgents[i]}, time.Second)
+					lock.RLock()
+					// Select a random user agent
+					myUserAgentIndex := rand.Intn(len(userAgents))
+					myUserAgent := userAgents[myUserAgentIndex]
+					// Use the rule
+					action, match, err := rule.Run(waf.RunInput{"#._server['HTTP_USER_AGENT']": myUserAgent}, time.Second)
 					require.NoError(t, err)
-					//require.Equal(t, waf.NoAction, action)
-					//require.Empty(t, match)
+					if myUserAgentIndex == currentUserAgentIndex {
+						require.Equal(t, waf.MonitorAction, action)
+						require.NotEmpty(t, match)
+					} else {
+						require.Equal(t, waf.NoAction, action)
+						require.Empty(t, match)
+					}
+					lock.RUnlock()
 				}
 			}()
 		}
