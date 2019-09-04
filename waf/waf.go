@@ -5,6 +5,7 @@
 package waf
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -16,17 +17,18 @@ import (
 // #include <stdlib.h>
 // #include <string.h>
 // #include "PowerWAF.h"
+// extern void onLogMessage(PW_LOG_LEVEL level, const char *function, const char *file, int line, const char *message, size_t message_len);
 import "C"
 
 type Rule struct {
 	id *C.char
 }
 
-func NewRule(id string, rule []byte) (*Rule, error) {
+func NewRule(id string, rule string) (*Rule, error) {
 	rid := C.CString(id)
-	crule := C.CBytes(rule)
-	defer C.free(crule)
-	ok := C.powerwaf_initializePowerWAF(rid, (*C.char)(crule))
+	crule := C.CString(rule)
+	defer C.free(unsafe.Pointer(crule))
+	ok := C.powerwaf_initializePowerWAF(rid, crule)
 	if !ok {
 		return nil, fmt.Errorf("could instantiate the waf rule `%s`", id)
 	}
@@ -81,8 +83,10 @@ func (e Error) Error() string {
 		return "invalid call"
 	case ErrInvalidFlow:
 		return "invalid flow"
+	case ErrNoRule:
+		return "no rule"
 	default:
-		return "unknown error"
+		return fmt.Sprintf("unknown error `%d`", e)
 	}
 }
 
@@ -118,11 +122,11 @@ func (r *Rule) Run(data RunInput, timeout time.Duration) (action Action, match [
 	}
 }
 
-func toWAFInput(data RunInput) (*C.PWInput, error) {
+func toWAFInput(data RunInput) (*C.PWArgs, error) {
 	return valueToWAFInput(reflect.ValueOf(data))
 }
 
-func valueToWAFInput(v reflect.Value) (in *C.PWInput, err error) {
+func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 	switch v.Kind() {
 	default:
 		return nil, fmt.Errorf("unexpected WAF input type `%T`", v.Interface())
@@ -135,8 +139,8 @@ func valueToWAFInput(v reflect.Value) (in *C.PWInput, err error) {
 	case reflect.String:
 		str := v.String()
 		cstr := C.CString(str)
+		defer C.free(unsafe.Pointer(cstr))
 		wstr := C.powerwaf_createStringWithLength(cstr, C.size_t(len(str)))
-		C.free(unsafe.Pointer(cstr))
 		return &wstr, nil
 
 	case reflect.Map:
@@ -152,9 +156,14 @@ func valueToWAFInput(v reflect.Value) (in *C.PWInput, err error) {
 				C.powerwaf_freeInput(in, C.bool(false))
 				return nil, err
 			}
-			key := C.CString(iter.Key().String())
-			C.powerwaf_addToPWInputMap(in, key, *value)
-			C.free(unsafe.Pointer(key))
+			k := iter.Key().String()
+			key := C.CString(k)
+			defer C.free(unsafe.Pointer(key))
+			if !C.powerwaf_addToPWArgsMap(in, key, C.ulong(len(k)), *value) {
+				C.powerwaf_freeInput(value, C.bool(false))
+				C.powerwaf_freeInput(in, C.bool(false))
+				return nil, errors.New("could not insert a key element into a map")
+			}
 		}
 		return in, nil
 
@@ -167,8 +176,20 @@ func valueToWAFInput(v reflect.Value) (in *C.PWInput, err error) {
 				C.powerwaf_freeInput(in, C.bool(false))
 				return nil, err
 			}
-			C.powerwaf_addToPWInputArray(in, *value)
+			if !C.powerwaf_addToPWArgsArray(in, *value) {
+				C.powerwaf_freeInput(in, C.bool(false))
+				return nil, fmt.Errorf("could not insert element `%d` of an array", i)
+			}
 		}
 		return in, nil
 	}
+}
+
+//export goOnLogMessage
+func goOnLogMessage(level C.PW_LOG_LEVEL, _, _ *C.char, _ C.int, message *C.char, length C.size_t) {
+	fmt.Println(C.GoStringN(message, C.int(length)))
+}
+
+func SetupLogging() {
+	C.powerwaf_setupLogging(C.powerwaf_logging_cb_t(C.onLogMessage), C.PWL_DEBUG)
 }
