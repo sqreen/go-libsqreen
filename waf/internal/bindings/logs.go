@@ -2,9 +2,9 @@
 // Please refer to our terms for more information:
 // https://www.sqreen.io/terms.html
 
-package waf
+package bindings
 
-// #include "PowerWAF.h"
+// #include "waf.h"
 // extern void goOnLogMessage(PW_LOG_LEVEL level, const char *function, const char *file, int line, const char *message, size_t message_len);
 // void onLogMessage(PW_LOG_LEVEL level, const char *function, const char *file, int line, const char *message, size_t message_len) {
 //	 	goOnLogMessage(level, function, file, line, message, message_len);
