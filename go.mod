@@ -1,6 +1,6 @@
 module github.com/sqreen/go-libsqreen
 
-go 1.12
+go 1.10
 
 require (
 	github.com/pkg/errors v0.8.1

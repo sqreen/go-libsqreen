@@ -145,14 +145,13 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 		}
 		m := C.powerwaf_createMap()
 		in = &m
-		iter := v.MapRange()
-		for iter.Next() {
-			value, err := valueToWAFInput(iter.Value())
+		for _, k := range v.MapKeys() {
+			value, err := valueToWAFInput(v.MapIndex(k))
 			if err != nil {
 				C.powerwaf_freeInput(in, C.bool(false))
 				return nil, err
 			}
-			k := iter.Key().String()
+			k := k.String()
 			key := C.CString(k)
 			defer C.free(unsafe.Pointer(key))
 			if !C.powerwaf_addToPWArgsMap(in, key, C.ulong(len(k)), *value) {
