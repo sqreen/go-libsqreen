@@ -178,6 +178,30 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 			}
 		}
 		return in, nil
+
+	case reflect.Int:
+		fallthrough
+	case reflect.Int8:
+		fallthrough
+	case reflect.Int16:
+		fallthrough
+	case reflect.Int32:
+		fallthrough
+	case reflect.Int64:
+		arg := C.powerwaf_createInt((C.long)(v.Int()))
+		return &arg, nil
+
+	case reflect.Uint:
+		fallthrough
+	case reflect.Uint8:
+		fallthrough
+	case reflect.Uint16:
+		fallthrough
+	case reflect.Uint32:
+		fallthrough
+	case reflect.Uint64:
+		arg := C.powerwaf_createUint((C.ulong)(v.Uint()))
+		return &arg, nil
 	}
 }
 
