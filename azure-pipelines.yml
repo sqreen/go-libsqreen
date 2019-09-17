@@ -3,28 +3,31 @@ trigger:
   - dev
 
 strategy:
-    matrix:
-      linux:
-        vmImage: 'ubuntu-latest'
-      windows:
-        vmImage: 'windows-latest'
+  matrix:
+    # Last two stable versions
+    go1.13:
+      containerImage: golang:1.13
+    go1.12:
+      containerImage: golang:1.12
+    # Last two old stable versions
+    go1.11:
+      containerImage: golang:1.11
+    go1.10:
+      containerImage: golang:1.10
 
 jobs:
 - job: Linux
   pool:
-    vmImage: $[ variables['vmImage'] ]
-  strategy:
-    matrix:
-      # Last two stable versions
-      go1.13:
-        containerImage: golang:1.13
-      go1.12:
-        containerImage: golang:1.12
-      # Last two old stable versions
-      go1.11:
-        containerImage: golang:1.11
-      go1.10:
-        containerImage: golang:1.10
+    vmImage: 'ubuntu-latest'
+  container: $[ variables['containerImage'] ]
+  steps:
+    - script: |
+        go env
+        gcc -v
+
+- job: Windows
+  pool:
+    vmImage: 'windows-latest'
   container: $[ variables['containerImage'] ]
   steps:
     - script: |
