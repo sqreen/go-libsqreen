@@ -2,10 +2,17 @@ trigger:
   - master
   - dev
 
+strategy:
+    matrix:
+      linux:
+        vmImage: 'ubuntu-latest'
+      windows:
+        vmImage: 'windows-latest'
+
 jobs:
 - job: Linux
   pool:
-    vmImage: 'ubuntu-latest'
+    vmImage: $[ variables['vmImage'] ]
   strategy:
     matrix:
       # Last two stable versions
