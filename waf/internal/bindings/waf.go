@@ -15,8 +15,7 @@ import (
 )
 
 // #cgo CFLAGS: -I${SRCDIR}/../../../lib/waf/include
-// #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/linux
-// #cgo windows,amd64 LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/windows
+// #cgo amd64 LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/linux
 // #cgo LDFLAGS: -lwaf -lstdc++
 // #include <stdlib.h>
 // #include <string.h>
