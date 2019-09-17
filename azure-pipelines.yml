@@ -16,10 +16,10 @@ jobs:
       vmImage: 'windows-latest'
 
   - job: MacOS
-      pool:
-        vmImage: macOS-latest
-      steps:
-        - script: |
-            go env
-            clang -v
-            go test -v -x ./...
+    pool:
+      vmImage: macOS-latest
+    steps:
+      - script: |
+          go env
+          clang -v
+          go test -v -x ./...
