@@ -101,7 +101,7 @@ func (r Rule) Run(data types.RunInput, timeout time.Duration) (action types.Acti
 	}
 	defer C.powerwaf_freeInput(dataIn, C.bool(false))
 
-	ret := C.powerwaf_runPowerWAF(r.id, dataIn, C.ulong(timeout/time.Microsecond))
+	ret := C.powerwaf_runPowerWAF(r.id, dataIn, C.size_t(timeout/time.Microsecond))
 	defer C.powerwaf_freeReturn(ret)
 
 	switch a := ret.action; a {
@@ -155,7 +155,7 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 			k := k.String()
 			key := C.CString(k)
 			defer C.free(unsafe.Pointer(key))
-			if !C.powerwaf_addToPWArgsMap(in, key, C.ulong(len(k)), *value) {
+			if !C.powerwaf_addToPWArgsMap(in, key, C.size_t(len(k)), *value) {
 				C.powerwaf_freeInput(value, C.bool(false))
 				C.powerwaf_freeInput(in, C.bool(false))
 				return nil, errors.New("could not insert a key element into a map")
@@ -188,7 +188,7 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 	case reflect.Int32:
 		fallthrough
 	case reflect.Int64:
-		arg := C.powerwaf_createInt((C.long)(v.Int()))
+		arg := C.powerwaf_createInt((C.int64_t)(v.Int()))
 		return &arg, nil
 
 	case reflect.Uint:
@@ -200,7 +200,7 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 	case reflect.Uint32:
 		fallthrough
 	case reflect.Uint64:
-		arg := C.powerwaf_createUint((C.ulong)(v.Uint()))
+		arg := C.powerwaf_createUint((C.uint64_t)(v.Uint()))
 		return &arg, nil
 	}
 }
