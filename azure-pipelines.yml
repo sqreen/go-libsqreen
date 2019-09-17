@@ -11,7 +11,7 @@ jobs:
       go1.12:
         containerImage: golang:1.12
       go1.13:
-        containerImage:golang:1.13
+        containerImage: golang:1.13
   container: $[ variables['containerImage'] ]
   steps:
     - script: go env
