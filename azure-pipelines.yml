@@ -1,0 +1,17 @@
+trigger:
+  - master
+  - dev
+
+jobs:
+- job: Linux
+  pool:
+    vmImage: 'ubuntu-latest'
+  strategy:
+    matrix:
+      go1.12:
+        containerImage: golang:1.12
+      go1.13:
+        containerImage:golang:1.13
+  container: $[ variables['containerImage'] ]
+  steps:
+    - script: go env
