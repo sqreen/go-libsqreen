@@ -16,20 +16,20 @@ strategy:
       containerImage: golang:1.10
 
 jobs:
-- job: Linux
-  pool:
-    vmImage: 'ubuntu-latest'
-  container: $[ variables['containerImage'] ]
-  steps:
-    - script: |
-        go env
-        gcc -v
+  - job: Linux
+    pool:
+      vmImage: ubuntu-latest
+    container: $[ variables['containerImage'] ]
+    steps:
+      - script: |
+          go env
+          gcc -v
 
-- job: Windows
-  pool:
-    vmImage: 'windows-latest'
-  container: $[ variables['containerImage'] ]
-  steps:
-    - script: |
-        go env
-        gcc -v
+  - job: Windows
+    pool:
+      vmImage: windows-latest
+    container: $[ variables['containerImage'] ]
+    steps:
+      - script: |
+          go env
+          gcc -v
