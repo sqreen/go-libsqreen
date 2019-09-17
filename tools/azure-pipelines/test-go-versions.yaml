@@ -1,0 +1,25 @@
+parameters:
+  name: ''
+  vmImage: ''
+
+
+jobs:
+  - job: ${{ parameters.name }}
+    pool:
+      vmImage: ${{ parameters.vmImage }}
+    strategy:
+      matrix:
+        # Last two stable versions
+        go1.13:
+          containerImage: golang:1.13
+        go1.12:
+          containerImage: golang:1.12
+        # Last two old stable versions
+        go1.11:
+          containerImage: golang:1.11
+        go1.10:
+          containerImage: golang:1.10
+    steps:
+      - script: |
+          go env
+          gcc -v
