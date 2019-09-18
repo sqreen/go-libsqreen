@@ -24,6 +24,6 @@ jobs:
       - script: |
           go env
           gcc -v
-      - ${{ if eq($(GOARCH), 'amd64') }}:
+      - ${{ if eq(GOARCH, 'amd64') }}:
           - script: go test -v -x ./...
           - script: go test -v -x ./... -waf.failsafe
