@@ -12,9 +12,12 @@ jobs:
         GOARCH: [ amd64, 386 ]
 
   - template: tools/azure-pipelines/test-go-versions.yml
-    parameters:
-      name: Windows
-      vmImage: 'windows-latest'
+      parameters:
+        name: Windows
+        vmImage: windows-latest
+        go: [1.13, 1.12, 1.11, 1.10]
+        targets:
+          GOARCH: [ amd64, 386 ]
 
   - job: MacOS
     pool:

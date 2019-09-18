@@ -21,7 +21,5 @@ jobs:
       env:
         GOARCH: $(GOARCH)
     steps:
-      - script: |
-          go env
-          gcc -v
+      - script: go env
       - script: go test -v -x ./...
