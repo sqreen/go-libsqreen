@@ -13,7 +13,7 @@ jobs:
       matrix:
         ${{ each go in parameters.go }}:
           ${{ each goarch in parameters.targets.GOARCH }}:
-            ${{ format('{0}_{1}', go, goarch) }}:
+            ${{ format('go{0}_{1}', go, goarch) }}:
               containerImage: golang:${{ go }}
               GOARCH: ${{ goarch }}
     container:
