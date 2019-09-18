@@ -9,21 +9,16 @@ jobs:
   - job: ${{ parameters.name }}
     pool:
       vmImage: ${{ parameters.vmImage }}
-    strategy:
-      matrix:
-        ${{ each go in parameters.go }}:
-          ${{ each goarch in parameters.targets.GOARCH }}:
-            ${{ format('go{0}_{1}', go, goarch) }}:
-              containerImage: golang:${{ go }}
-              GOARCH: ${{ goarch }}
-    container:
-      image: $[ variables['containerImage'] ]
-      env:
-        GOARCH: $[ variables['GOARCH'] ]
-    steps:
-      - script: |
-          go env
-          gcc -v
-      - ${{ if eq(parameters.targets.GOARCH, 'amd64') }}:
-          - script: go test -v -x ./...
-          - script: go test -v -x ./... -waf.failsafe
+    ${{ each go in parameters.go }}:
+      ${{ each goarch in parameters.targets.GOARCH }}:
+        container:
+          image: 'golang:${{ go }}'
+          env:
+            GOARCH: ${{ goarch }}
+        steps:
+          - script: |
+              go env
+              gcc -v
+          - ${{ if eq(goarch, 'amd64') }}:
+              - script: go test -v -x ./...
+              - script: go test -v -x ./... -waf.failsafe
