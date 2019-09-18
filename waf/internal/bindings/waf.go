@@ -2,6 +2,11 @@
 // Please refer to our terms for more information:
 // https://www.sqreen.io/terms.html
 
+// +build !sqreen_nowaf
+// +build !windows
+// +build amd64
+// +build linux darwin
+
 package bindings
 
 import (
@@ -15,7 +20,7 @@ import (
 )
 
 // #cgo CFLAGS: -I${SRCDIR}/../../../lib/waf/include
-// #cgo amd64,linux amd64,windows LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/linux
+// #cgo amd64,linux LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/linux
 // #cgo amd64,darwin LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/darwin
 // #cgo LDFLAGS: -lwaf -lstdc++
 // #include <stdlib.h>

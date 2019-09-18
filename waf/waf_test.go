@@ -5,6 +5,7 @@
 package waf_test
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -16,8 +17,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var failsafeStubs bool
+
+func init() {
+	flag.BoolVar(&failsafeStubs, "waf.failsafe", false, "true when the waf library is stubbed with a failsafe implementation")
+	flag.Parse()
+}
+
 func TestUsage(t *testing.T) {
-	//types.SetupLogging()
+	if failsafeStubs {
+		r, err := waf.NewRule("my rule", `{"rules": [{"rule_id": "1","filters": [{"operator": "@rx","targets": ["#._server['HTTP_USER_AGENT']"],"value": "toto"}]}],"flows": [{"name": "arachni_detection","steps": [{"id": "start","rule_ids": ["1"],"on_match": "exit_monitor"}]}]}`)
+		require.Nil(t, r)
+		require.Error(t, err)
+		return
+	}
 
 	t.Run("hello, waf!", func(t *testing.T) {
 		t.Run("monitor", func(t *testing.T) {
