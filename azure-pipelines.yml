@@ -2,24 +2,25 @@ trigger:
   - master
   - dev
 
-
-
 jobs:
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
-      name: Linux
-      vmImage: 'ubuntu-latest'
+      name: Native Linux
+      vmImage: ubuntu-latest
+      go: [1.13, 1.12, 1.11, 1.10]
+      targets:
+        GOARCH: [ amd64, 386 ]
 
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
-      name: Windows
+      name: Native Windows
       vmImage: 'windows-latest'
 
-  - job: MacOS
+  - job: Native MacOS
     pool:
       vmImage: macOS-latest
     steps:
       - script: |
           go env
           clang -v
-          go test -v -x ./...
+          go test -v -x -tags  ./...

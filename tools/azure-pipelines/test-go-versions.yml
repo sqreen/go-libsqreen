@@ -1,7 +1,9 @@
 parameters:
   name: ''
   vmImage: ''
-
+  go: [ '1.13', '1.12', '1.11', '1.10' ]
+  targets:
+    GOARCH: [ amd64 ]
 
 jobs:
   - job: ${{ parameters.name }}
@@ -9,18 +11,19 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     strategy:
       matrix:
-        # Last two stable versions
-        go1.13:
-          containerImage: golang:1.13
-        go1.12:
-          containerImage: golang:1.12
-        # Last two old stable versions
-        go1.11:
-          containerImage: golang:1.11
-        go1.10:
-          containerImage: golang:1.10
+        ${{ each goVersion in parameters.go }}:
+          ${{ each goarch in parameters.targets.GOARCH }}:
+            ${{ format('go{0}_{1}', go, goarch) }}:
+              containerImage: golang:${{ goVersion }}
+              GOARCH: ${{ goarch }}
+    container:
+      image: $[ variables['containerImage'] ]
+      env:
+        GOARCH: $[ variables['GOARCH'] ]
     steps:
       - script: |
           go env
           gcc -v
-          go test -v -x ./...
+      - ${{ if eq(parameters.targets.GOARCH, 'amd64') }}:
+          - script: go test -v -x ./...
+          - script: go test -v -x ./... -waf.failsafe
