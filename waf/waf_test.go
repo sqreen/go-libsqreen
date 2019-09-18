@@ -4,6 +4,7 @@
 
 // +build cgo
 // +build amd64
+// +build !windows
 
 package waf_test
 

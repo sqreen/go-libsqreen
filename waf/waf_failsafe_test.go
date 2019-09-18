@@ -2,7 +2,7 @@
 // Please refer to our terms for more information:
 // https://www.sqreen.io/terms.html
 
-// +build !cgo !amd64
+// +build !cgo !amd64 windows
 
 package waf_test
 
