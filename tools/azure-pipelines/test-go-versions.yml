@@ -13,13 +13,13 @@ jobs:
       matrix:
         ${{ each go in parameters.go }}:
           ${{ each goarch in parameters.targets.GOARCH }}:
-            ${{ format('go{0}_{1}', go, goarch) }}:
+            ${{ format('{0}_{1}', go, goarch) }}:
               containerImage: golang:${{ go }}
               GOARCH: ${{ goarch }}
     container:
-      image: $[ variables['containerImage'] ]
+      image: ${{ variables.containerImage }}
       env:
-        GOARCH: $[ variables['GOARCH'] ]
+        GOARCH: ${{ variables.GOARCH }}
     steps:
       - script: |
           go env
