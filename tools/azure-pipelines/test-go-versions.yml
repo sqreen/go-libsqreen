@@ -17,9 +17,9 @@ jobs:
               containerImage: golang:${{ go }}
               GOARCH: ${{ goarch }}
     container:
-      image: ${{ variables.containerImage }}
+      image: $[ variables['containerImage'] ]
       env:
-        GOARCH: ${{ variables.GOARCH }}
+        GOARCH: $[ variables['GOARCH'] ]
     steps:
       - script: |
           go env
