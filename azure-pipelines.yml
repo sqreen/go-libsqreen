@@ -5,7 +5,7 @@ trigger:
 jobs:
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
-      name: Native Linux
+      name: Linux
       vmImage: ubuntu-latest
       go: [1.13, 1.12, 1.11, 1.10]
       targets:
@@ -13,10 +13,10 @@ jobs:
 
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
-      name: Native Windows
+      name: Windows
       vmImage: 'windows-latest'
 
-  - job: Native MacOS
+  - job: MacOS
     pool:
       vmImage: macOS-latest
     steps:
