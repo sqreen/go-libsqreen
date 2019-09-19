@@ -23,11 +23,5 @@ jobs:
         GOARCH: $(GOARCH)
     steps:
       - script: go env
-      - bash: |
-          if [[ $(goVersion) != '1.10' ]]; then
-            return
-          fi
-          echo $(Build.Repository.Name)
-          mkdir -p /go/src/github.com/sqreen
-          ln -s $PWD /go/src/github.com/sqreen/lib-sqreen
+      - script: ln -s $PWD /go/src/github.com/sqreen/go-libsqreen
       - script: go test -v -x ./...
