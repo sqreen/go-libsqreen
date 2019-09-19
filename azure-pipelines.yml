@@ -19,7 +19,7 @@ jobs:
       targets:
         GOARCH: [ amd64, 386 ]
 
-  - job: MacOS amd64
+  - job: MacOS_amd64
     pool:
       vmImage: macOS-latest
     steps:
@@ -28,7 +28,7 @@ jobs:
           clang -v
           go test -v -x ./...
 
-  - job: MacOS 386
+  - job: MacOS_386
     pool:
       vmImage: macOS-latest
     steps:
