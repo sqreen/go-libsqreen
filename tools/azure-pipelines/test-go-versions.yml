@@ -1,7 +1,7 @@
 parameters:
   name: ''
   vmImage: ''
-  go: [ '1.13', '1.12', '1.11', '1.10' ]
+  go: [ '1.13', '1.12', '1.11' ]
   targets:
     GOARCH: [ amd64 ]
 
@@ -16,14 +16,10 @@ jobs:
             ${{ format('go{0}_{1}', go, goarch) }}:
               containerImage: golang:${{ go }}
               GOARCH: ${{ goarch }}
-              goVersion: ${{ go }}
     container:
       image: $(containerImage)
       env:
         GOARCH: $(GOARCH)
     steps:
       - script: go env
-      - script: |
-          mkdir -p /go/src/github.com/sqreen/go-libsqreen
-          ln -s $PWD /go/src/github.com/sqreen/go-libsqreen
       - script: go test -v -x ./...
