@@ -23,5 +23,7 @@ jobs:
         GOARCH: $(GOARCH)
     steps:
       - script: go env
-      - script: ln -s $PWD /go/src/github.com/sqreen/go-libsqreen
+      - script: |
+          mkdir /go/src/github.com/sqreen/go-libsqreen
+          ln -s $PWD /go/src/github.com/sqreen/go-libsqreen
       - script: go test -v -x ./...
