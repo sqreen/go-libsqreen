@@ -16,10 +16,18 @@ jobs:
             ${{ format('go{0}_{1}', go, goarch) }}:
               containerImage: golang:${{ go }}
               GOARCH: ${{ goarch }}
+              goVersion: ${{ go }}
     container:
       image: $(containerImage)
       env:
         GOARCH: $(GOARCH)
     steps:
       - script: go env
+      - bash: |
+          if [[ $(goVersion) != '1.10' ]]; then
+            return
+          fi
+          echo $(Build.Repository.Name)
+          mkdir -p /go/src/github.com/sqreen
+          ln -s $PWD /go/src/github.com/sqreen/lib-sqreen
       - script: go test -v -x ./...
