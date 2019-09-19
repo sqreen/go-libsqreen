@@ -7,7 +7,7 @@ jobs:
     parameters:
       name: Linux
       vmImage: ubuntu-latest
-      go: [1.13, 1.12, 1.11, 1.10]
+      go: [1.13, 1.12, 1.11]
       targets:
         GOARCH: [ amd64, 386 ]
 
@@ -15,11 +15,11 @@ jobs:
     parameters:
       name: Windows
       vmImage: windows-latest
-      go: [1.13, 1.12, 1.11, 1.10]
+      go: [1.13, 1.12, 1.11]
       targets:
         GOARCH: [ amd64, 386 ]
 
-  - job: MacOS
+  - job: MacOS_amd64
     pool:
       vmImage: macOS-latest
     steps:
@@ -27,3 +27,12 @@ jobs:
           go env
           clang -v
           go test -v -x ./...
+
+  - job: MacOS_386
+    pool:
+      vmImage: macOS-latest
+    steps:
+      - script: |
+          go env
+          clang -v
+          env GOARCH=386 go test -v -x ./...
