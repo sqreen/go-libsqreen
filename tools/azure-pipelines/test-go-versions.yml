@@ -13,10 +13,10 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     strategy:
       matrix:
-        ${{ each go in parameters.go.versions }}:
+        ${{ each goVersion in parameters.go.versions }}:
           ${{ each goarch in parameters.go.targets.GOARCH }}:
-            ${{ format('go{0}_{1}', go, goarch) }}:
-              containerImage: ${{ parameters.go.container }}:${{ go }}
+            ${{ format('go{0}_{1}', goVersion, goarch) }}:
+              containerImage: ${{ parameters.go.container }}:${{ goVersion }}
               GOARCH: ${{ goarch }}
     container:
       image: $(containerImage)
