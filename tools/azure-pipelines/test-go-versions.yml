@@ -16,7 +16,7 @@ jobs:
         ${{ each goVersion in parameters.go.versions }}:
           ${{ each goarch in parameters.go.targets.GOARCH }}:
             ${{ format('go{0}_{1}', goVersion, goarch) }}:
-              GOVERSION: ${{ parameters.go.container }}:${{ goVersion }}
+              GOVERSION: ${{ goVersion }}
               GOARCH: ${{ goarch }}
     container:
       image: ${{ parameters.go.container }}:$(GOVERSION)
