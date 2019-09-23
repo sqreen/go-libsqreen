@@ -7,7 +7,7 @@ jobs:
     parameters:
       name: Linux
       vmImage: ubuntu-latest
-      go: [1.13, 1.12, 1.11]
+      go: [ 1.13, 1.12, 1.11, 1.13-alpine, 1.12-alpine, 1.11-alpine ]
       targets:
         GOARCH: [ amd64, 386 ]
 
