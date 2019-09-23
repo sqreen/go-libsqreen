@@ -5,7 +5,7 @@ trigger:
 jobs:
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
-      name: Alpine Linux (musl-libc)
+      name: Alpine_Linux
       vmImage: ubuntu-latest
       go:
         versions: [ 1.13, 1.12, 1.11 ]
@@ -14,11 +14,11 @@ jobs:
 
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
-      name: Debian Linux (glibc)
+      name: Debian_Linux
       vmImage: ubuntu-latest
       go:
-        container: sqreen/
-        versions: [ 1.13, 1.12, 1.11 ]
+        container: sqreen/azure-pipelines-container-golang
+        versions: [ 1.13-alpine, 1.12-alpine ]
         targets:
           GOARCH: [ amd64, 386 ]
 
