@@ -14,3 +14,7 @@ import (
 func newRuleImpl(id, rule string) (types.Rule, error) {
 	return bindings.NewRule(id, rule)
 }
+
+func version() *string {
+	return bindings.Version()
+}

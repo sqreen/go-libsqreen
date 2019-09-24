@@ -41,3 +41,7 @@ func newRuleImpl(id, rule string) (types.Rule, error) {
 	}
 	return newRule(id, rule)
 }
+
+func version() *string {
+	return nil
+}

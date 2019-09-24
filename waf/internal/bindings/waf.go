@@ -28,6 +28,15 @@ import (
 // extern void onLogMessage(PW_LOG_LEVEL level, const char *function, const char *file, int line, const char *message, size_t message_len);
 import "C"
 
+func Version() *string {
+	v := C.powerwaf_getVersion()
+	major := uint16(v.major)
+	minor := uint16(v.minor)
+	patch := uint16(v.patch)
+	str := fmt.Sprintf("%d.%d.%d", major, minor, patch)
+	return &str
+}
+
 type Rule struct {
 	id *C.char
 }

@@ -27,3 +27,4 @@ const (
 )
 
 type NewRuleFunc = func(string, string) (Rule, error)
+type VersionFunc = func() *string
