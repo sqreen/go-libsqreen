@@ -1,9 +1,11 @@
 parameters:
   name: ''
   vmImage: ''
-  go: [ '1.13', '1.12', '1.11', '1.10' ]
-  targets:
-    GOARCH: [ amd64 ]
+  go:
+    container: golang
+    versions: [ 1.13, 1.12, 1.11 ]
+    targets:
+      GOARCH: [ amd64 ]
 
 jobs:
   - job: ${{ parameters.name }}
@@ -11,13 +13,13 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     strategy:
       matrix:
-        ${{ each go in parameters.go }}:
-          ${{ each goarch in parameters.targets.GOARCH }}:
-            ${{ format('go{0}_{1}', go, goarch) }}:
-              containerImage: golang:${{ go }}
+        ${{ each goVersion in parameters.go.versions }}:
+          ${{ each goarch in parameters.go.targets.GOARCH }}:
+            ${{ format('go{0}_{1}', goVersion, goarch) }}:
+              GOVERSION: ${{ goVersion }}
               GOARCH: ${{ goarch }}
     container:
-      image: $(containerImage)
+      image: ${{ parameters.go.container }}:$(GOVERSION)
       env:
         GOARCH: $(GOARCH)
     steps:
