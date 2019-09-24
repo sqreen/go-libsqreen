@@ -5,6 +5,7 @@
 // +build cgo
 // +build amd64
 // +build !windows
+// +build !sqreen_nowaf
 
 package waf_test
 
@@ -22,6 +23,12 @@ import (
 
 func TestUsage(t *testing.T) {
 	t.Run("hello, waf!", func(t *testing.T) {
+		t.Run("version", func(t *testing.T) {
+			v := waf.Version()
+			require.NotNil(t, v)
+			require.Equal(t, "0.3.0", *v)
+		})
+
 		t.Run("monitor", func(t *testing.T) {
 			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
 			require.NoError(t, err)

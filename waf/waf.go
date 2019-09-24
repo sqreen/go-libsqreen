@@ -12,3 +12,10 @@ func NewRule(id, rule string) (types.Rule, error) {
 
 // Static assert that `NewRule` has the expected signature
 var _ types.NewRuleFunc = NewRule
+
+func Version() *string {
+	return version()
+}
+
+// Static assert that `Version` has the expected signature
+var _ types.VersionFunc = Version

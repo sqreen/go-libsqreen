@@ -15,3 +15,7 @@ import (
 func NewRule(id string, rule string) (types.Rule, error) {
 	return nil, errors.New("waf disabled at compilation-time because of Go build tags excluding it")
 }
+
+func Version() *string {
+	return nil
+}
