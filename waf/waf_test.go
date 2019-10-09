@@ -58,6 +58,16 @@ func TestUsage(t *testing.T) {
 			require.Equal(t, types.NoAction, action)
 			require.Empty(t, match)
 		})
+
+		t.Run("timeout", func(t *testing.T) {
+			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
+			require.NoError(t, err)
+			defer r.Close()
+			action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "Arachni"}, 0)
+			require.Equal(t, types.ErrTimeout, err)
+			require.Equal(t, types.NoAction, action)
+			require.Empty(t, match)
+		})
 	})
 
 	t.Run("update an existing rule", func(t *testing.T) {
