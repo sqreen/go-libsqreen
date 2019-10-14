@@ -152,7 +152,7 @@ typedef struct {
 ///
 /// @return The API version in SemVer form
 
-extern const PWVersion powerwaf_getVersion(void);
+extern PWVersion powerwaf_getVersion(void);
 
 
 typedef enum
