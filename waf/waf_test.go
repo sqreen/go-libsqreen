@@ -26,7 +26,7 @@ func TestUsage(t *testing.T) {
 		t.Run("version", func(t *testing.T) {
 			v := waf.Version()
 			require.NotNil(t, v)
-			require.Equal(t, "0.3.0", *v)
+			require.Equal(t, "0.4.0", *v)
 		})
 
 		t.Run("monitor", func(t *testing.T) {

@@ -1,6 +1,7 @@
 parameters:
   name: ''
   vmImage: ''
+  continueOnError: false
   go:
     container: golang
     versions: [ 1.13, 1.12, 1.11 ]
@@ -9,6 +10,7 @@ parameters:
 
 jobs:
   - job: ${{ parameters.name }}
+    continueOnError: ${{ parameters.continueOnError }}
     pool:
       vmImage: ${{ parameters.vmImage }}
     strategy:
