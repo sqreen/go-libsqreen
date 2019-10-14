@@ -26,7 +26,7 @@ func TestUsage(t *testing.T) {
 		t.Run("version", func(t *testing.T) {
 			v := waf.Version()
 			require.NotNil(t, v)
-			require.Equal(t, "0.3.0", *v)
+			require.Equal(t, "0.4.0", *v)
 		})
 
 		t.Run("monitor", func(t *testing.T) {
@@ -58,6 +58,16 @@ func TestUsage(t *testing.T) {
 			require.Equal(t, types.NoAction, action)
 			require.Empty(t, match)
 		})
+
+		t.Run("timeout", func(t *testing.T) {
+			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
+			require.NoError(t, err)
+			defer r.Close()
+			action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "Arachni"}, 0)
+			require.Equal(t, types.ErrTimeout, err)
+			require.Equal(t, types.NoAction, action)
+			require.Empty(t, match)
+		})
 	})
 
 	t.Run("update an existing rule", func(t *testing.T) {
@@ -82,12 +92,12 @@ func TestUsage(t *testing.T) {
 		// Create a store that will be checked more often than actually required by
 		// its period. So that we cover the case where the store is not always
 		// ready.
-		r, err := waf.NewRule("rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
+		r, err := waf.NewRule("rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]},{\"rule_id\": \"2\",\"filters\": [{\"operator\": \"@pm\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": [\"bla\", \"blo\", \"Toto\"]}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\",\"2\"],\"on_match\": \"exit_monitor\"}]}]}")
 		require.NoError(t, err)
 		defer r.Close()
 
 		userAgents := [...]string{"Arachni", "Toto", "Tata", "Titi"}
-		okIndex := 0
+		okIndex := 1
 
 		// Start 8000 users that will use the rule 1000 times each
 		nbUsers := 8000
@@ -108,7 +118,7 @@ func TestUsage(t *testing.T) {
 					i := rand.Int() % len(userAgents)
 					action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": userAgents[i]}, time.Second)
 					require.NoError(t, err)
-					if i == okIndex {
+					if i <= okIndex {
 						require.Equal(t, types.MonitorAction, action)
 						require.NotEmpty(t, match)
 					} else {

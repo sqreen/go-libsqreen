@@ -63,50 +63,6 @@ func (r Rule) Close() error {
 	return nil
 }
 
-type Error int
-
-const (
-	ErrInternal    Error = C.PW_ERR_INTERNAL
-	ErrTimeout     Error = C.PW_ERR_TIMEOUT
-	ErrInvalidCall Error = C.PW_ERR_INVALID_CALL
-	ErrInvalidRule Error = C.PW_ERR_INVALID_RULE
-	ErrInvalidFlow Error = C.PW_ERR_INVALID_FLOW
-	ErrNoRule      Error = C.PW_ERR_NORULE
-)
-
-// Static assertion that the previous error values implement the error interface.
-var (
-	_ error = ErrInternal
-	_ error = ErrTimeout
-	_ error = ErrInvalidCall
-	_ error = ErrInvalidRule
-	_ error = ErrInvalidFlow
-	_ error = ErrNoRule
-)
-
-func (e Error) Error() string {
-	switch e {
-	case ErrInternal:
-		return "internal error"
-	case ErrTimeout:
-		return "timeout"
-	case ErrInvalidRule:
-		return "invalid rule"
-	case ErrInvalidCall:
-		return "invalid call"
-	case ErrInvalidFlow:
-		return "invalid flow"
-	case ErrNoRule:
-		return "no rule"
-	default:
-		return fmt.Sprintf("unknown error `%d`", e)
-	}
-}
-
-func (e Error) String() string {
-	return e.Error()
-}
-
 func (r Rule) Run(data types.RunInput, timeout time.Duration) (action types.Action, info []byte, err error) {
 	dataIn, err := WAFInput(data)
 	if err != nil {
@@ -125,11 +81,36 @@ func (r Rule) Run(data types.RunInput, timeout time.Duration) (action types.Acti
 	case C.PW_BLOCK:
 		action = types.BlockAction
 	default:
-		return 0, nil, Error(a)
+		return 0, nil, goRunError(a, ret.data)
 	}
 
 	info = C.GoBytes(unsafe.Pointer(ret.data), C.int(C.strlen(ret.data)))
 	return action, info, nil
+}
+
+func goRunError(cErr C.PW_RET_CODE, data *C.char) error {
+	var err error
+	switch cErr {
+	case C.PW_ERR_INTERNAL:
+		err = types.ErrInternal
+	case C.PW_ERR_TIMEOUT:
+		err = types.ErrTimeout
+	case C.PW_ERR_INVALID_CALL:
+		err = types.ErrInvalidCall
+	case C.PW_ERR_INVALID_RULE:
+		err = types.ErrInvalidRule
+	case C.PW_ERR_INVALID_FLOW:
+		err = types.ErrInvalidFlow
+	case C.PW_ERR_NORULE:
+		err = types.ErrNoRule
+	default:
+		err = fmt.Errorf("WAFError(%d)", err)
+	}
+	if data != nil {
+		str := C.GoString(data)
+		err = fmt.Errorf("%s: %s", err, str)
+	}
+	return err
 }
 
 func WAFInput(data types.RunInput) (*C.PWArgs, error) {
