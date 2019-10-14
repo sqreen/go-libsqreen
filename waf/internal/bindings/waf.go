@@ -81,30 +81,36 @@ func (r Rule) Run(data types.RunInput, timeout time.Duration) (action types.Acti
 	case C.PW_BLOCK:
 		action = types.BlockAction
 	default:
-		return 0, nil, goError(a)
+		return 0, nil, goRunError(a, ret.data)
 	}
 
 	info = C.GoBytes(unsafe.Pointer(ret.data), C.int(C.strlen(ret.data)))
 	return action, info, nil
 }
 
-func goError(err C.PW_RET_CODE) error {
-	switch err {
+func goRunError(cErr C.PW_RET_CODE, data *C.char) error {
+	var err error
+	switch cErr {
 	case C.PW_ERR_INTERNAL:
-		return types.ErrInternal
+		err = types.ErrInternal
 	case C.PW_ERR_TIMEOUT:
-		return types.ErrTimeout
+		err = types.ErrTimeout
 	case C.PW_ERR_INVALID_CALL:
-		return types.ErrInvalidCall
+		err = types.ErrInvalidCall
 	case C.PW_ERR_INVALID_RULE:
-		return types.ErrInvalidRule
+		err = types.ErrInvalidRule
 	case C.PW_ERR_INVALID_FLOW:
-		return types.ErrInvalidFlow
+		err = types.ErrInvalidFlow
 	case C.PW_ERR_NORULE:
-		return types.ErrNoRule
+		err = types.ErrNoRule
 	default:
-		return fmt.Errorf("WAFError(%d)", err)
+		err = fmt.Errorf("WAFError(%d)", err)
 	}
+	if data != nil {
+		str := C.GoString(data)
+		err = fmt.Errorf("%s: %s", err, str)
+	}
+	return err
 }
 
 func WAFInput(data types.RunInput) (*C.PWArgs, error) {
