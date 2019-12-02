@@ -128,10 +128,10 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 		return valueToWAFInput(v.Elem())
 
 	case reflect.String:
-		str := v.String()
-		cstr := C.CString(str)
-		defer C.free(unsafe.Pointer(cstr))
-		wstr := C.powerwaf_createStringWithLength(cstr, C.size_t(len(str)))
+		// Use the string buffer of bytes
+		buf := []byte(v.String())
+		ptr := (*C.char)(unsafe.Pointer(&buf[0]))
+		wstr := C.powerwaf_createStringWithLength(ptr, C.size_t(len(buf)))
 		return &wstr, nil
 
 	case reflect.Map:
@@ -146,10 +146,9 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 				C.powerwaf_freeInput(in, C.bool(false))
 				return nil, err
 			}
-			k := k.String()
-			key := C.CString(k)
-			defer C.free(unsafe.Pointer(key))
-			if !C.powerwaf_addToPWArgsMap(in, key, C.size_t(len(k)), *value) {
+			key := []byte(k.String())
+			ckey := (*C.char)(unsafe.Pointer(&key[0]))
+			if !C.powerwaf_addToPWArgsMap(in, ckey, C.size_t(len(key)), *value) {
 				C.powerwaf_freeInput(value, C.bool(false))
 				C.powerwaf_freeInput(in, C.bool(false))
 				return nil, errors.New("could not insert a key element into a map")
