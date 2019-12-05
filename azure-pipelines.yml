@@ -41,7 +41,7 @@ jobs:
       - script: |
           go env
           clang -v
-          go test -v -x ./...
+          go test -v ./...
 
   - job: MacOS_386
     pool:
@@ -50,4 +50,4 @@ jobs:
       - script: |
           go env
           clang -v
-          env GOARCH=386 go test -v -x ./...
+          env GOARCH=386 go test -v ./...
