@@ -10,12 +10,12 @@
 package bindings
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"time"
 	"unsafe"
 
+	"github.com/pkg/errors"
 	"github.com/sqreen/go-libsqreen/waf/types"
 )
 
@@ -63,14 +63,14 @@ func (r Rule) Close() error {
 	return nil
 }
 
-func (r Rule) Run(data types.RunInput, timeout time.Duration) (action types.Action, info []byte, err error) {
-	dataIn, err := WAFInput(data)
+func (r Rule) Run(data types.DataSet, timeout time.Duration) (action types.Action, info []byte, err error) {
+	wafValue, err := marshalWAFValue(data)
 	if err != nil {
 		return 0, nil, err
 	}
-	defer C.powerwaf_freeInput(dataIn, C.bool(false))
+	defer freeWAFValue(wafValue)
 
-	ret := C.powerwaf_runPowerWAF(r.id, dataIn, C.size_t(timeout/time.Microsecond))
+	ret := C.powerwaf_runPowerWAF(r.id, (*C.PWArgs)(wafValue), C.size_t(timeout/time.Microsecond))
 	defer C.powerwaf_freeReturn(ret)
 
 	switch a := ret.action; a {
@@ -113,64 +113,59 @@ func goRunError(cErr C.PW_RET_CODE, data *C.char) error {
 	return err
 }
 
-func WAFInput(data types.RunInput) (*C.PWArgs, error) {
-	return valueToWAFInput(reflect.ValueOf(data))
+type (
+	WAFValue    C.PWArgs
+	WAFInt      C.PWArgs
+	WAFUInt     C.PWArgs
+	WAFString   C.PWArgs
+	WAFMap      C.PWArgs
+	WAFMapEntry C.PWArgs
+	WAFArray    C.PWArgs
+)
+
+const maxWAFValueDepth = 10
+
+func marshalWAFValue(data types.DataSet) (*WAFValue, error) {
+	v := new(WAFValue)
+	if err := marshalWAFValueRec(reflect.ValueOf(data), v, maxWAFValueDepth); err != nil {
+		freeWAFValue(v)
+		return nil, err
+	}
+	return v, nil
 }
 
-func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
-	switch v.Kind() {
+func marshalWAFValueRec(data reflect.Value, v *WAFValue, depth int) error {
+	if depth == 0 {
+		// Stop traversing and keep v to its current zero value.
+		return nil
+	}
+
+	switch data.Kind() {
 	default:
-		return nil, fmt.Errorf("unexpected WAF input type `%T`", v.Interface())
+		return fmt.Errorf("unexpected WAF input type `%T`", data.Interface())
 
 	case reflect.Ptr:
 		fallthrough
 	case reflect.Interface:
-		return valueToWAFInput(v.Elem())
+		// This interface or pointer traversal is not counted in the depth
+		return marshalWAFValueRec(data.Elem(), v, depth)
 
 	case reflect.String:
-		// Use the string buffer of bytes
-		buf := []byte(v.String())
-		ptr := (*C.char)(unsafe.Pointer(&buf[0]))
-		wstr := C.powerwaf_createStringWithLength(ptr, C.size_t(len(buf)))
-		return &wstr, nil
+		return makeWAFString((*WAFString)(v), data.String())
 
 	case reflect.Map:
-		if v.Type().Key().Kind() != reflect.String {
-			return nil, fmt.Errorf("unexpected WAF map key type `%T` instead of `string`", v.Interface())
+		if err := makeWAFMap((*WAFMap)(v), data.Len()); err != nil {
+			return err
 		}
-		m := C.powerwaf_createMap()
-		in = &m
-		for _, k := range v.MapKeys() {
-			value, err := valueToWAFInput(v.MapIndex(k))
-			if err != nil {
-				C.powerwaf_freeInput(in, C.bool(false))
-				return nil, err
-			}
-			key := []byte(k.String())
-			ckey := (*C.char)(unsafe.Pointer(&key[0]))
-			if !C.powerwaf_addToPWArgsMap(in, ckey, C.size_t(len(key)), *value) {
-				C.powerwaf_freeInput(value, C.bool(false))
-				C.powerwaf_freeInput(in, C.bool(false))
-				return nil, errors.New("could not insert a key element into a map")
-			}
-		}
-		return in, nil
+		return marshalWAFMap(data, (*WAFMap)(v), depth-1)
 
+	case reflect.Array:
+		fallthrough
 	case reflect.Slice:
-		a := C.powerwaf_createArray()
-		in = &a
-		for i := 0; i < v.Len(); i++ {
-			value, err := valueToWAFInput(v.Index(i))
-			if err != nil {
-				C.powerwaf_freeInput(in, C.bool(false))
-				return nil, err
-			}
-			if !C.powerwaf_addToPWArgsArray(in, *value) {
-				C.powerwaf_freeInput(in, C.bool(false))
-				return nil, fmt.Errorf("could not insert element `%d` of an array", i)
-			}
+		if err := makeWAFArray((*WAFArray)(v), data.Len()); err != nil {
+			return err
 		}
-		return in, nil
+		return marshalWAFArray(data, (*WAFArray)(v), depth-1)
 
 	case reflect.Int:
 		fallthrough
@@ -181,8 +176,7 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 	case reflect.Int32:
 		fallthrough
 	case reflect.Int64:
-		arg := C.powerwaf_createInt((C.int64_t)(v.Int()))
-		return &arg, nil
+		return makeWAFInt((*WAFInt)(v), data.Int())
 
 	case reflect.Uint:
 		fallthrough
@@ -193,16 +187,146 @@ func valueToWAFInput(v reflect.Value) (in *C.PWArgs, err error) {
 	case reflect.Uint32:
 		fallthrough
 	case reflect.Uint64:
-		arg := C.powerwaf_createUint((C.uint64_t)(v.Uint()))
-		return &arg, nil
+		return makeWAFUInt((*WAFUInt)(v), data.Uint())
 	}
 }
 
-//export goOnLogMessage
-func goOnLogMessage(level C.PW_LOG_LEVEL, _, _ *C.char, _ C.int, message *C.char, length C.size_t) {
-	fmt.Println(C.GoStringN(message, C.int(length)))
+func marshalWAFMap(data reflect.Value, v *WAFMap, depth int) error {
+	// Only allow string key types
+	if data.Type().Key().Kind() != reflect.String {
+		return errors.Errorf("unexpected WAF map key type `%T` instead of `string`", data.Interface())
+	}
+	// Marshal map entries
+	for i, iter := 0, data.MapRange(); iter.Next(); i++ {
+		entry := v.Index(i)
+		// Add the key first in order to get key insertion errors before traversing
+		// the value. It would be a waste if in the end the key cannot be added.
+		key := iter.Key().String()
+		if err := makeWAFMapKey(entry, key); err != nil {
+			return errors.Wrap(err, "could not add a new map key")
+		}
+		// Marshal the key's value
+		if err := marshalWAFValueRec(iter.Value(), (*WAFValue)(entry), depth); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func SetupLogging() {
-	C.powerwaf_setupLogging(C.powerwaf_logging_cb_t(C.onLogMessage), C.PWL_DEBUG)
+func marshalWAFArray(data reflect.Value, v *WAFArray, depth int) error {
+	// Profiling shows `data.Len()` is called every loop if it is
+	// used in the loop condition.
+	l := data.Len()
+	for i := 0; i < l; i++ {
+		if err := marshalWAFValueRec(data.Index(i), v.Index(i), depth); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func makeWAFMap(v *WAFMap, len int) error {
+	return makeWAFLengthedValue((*WAFValue)(v), len, C.PWI_MAP)
+}
+
+func (m *WAFMap) Index(i int) *WAFMapEntry {
+	entry := (*WAFArray)(m).Index(i)
+	return (*WAFMapEntry)(entry)
+}
+
+func (a *WAFArray) Index(i int) *WAFValue {
+	if C.uint64_t(i) >= a.nbEntries {
+		panic(errors.New("out of bounds access to WAFArray"))
+	}
+	// Go pointer arithmetic equivalent to the C expression
+	// `(PWArgs*)(a->value)[i]`
+	return (*WAFValue)(unsafe.Pointer(uintptr(a.value) + C.sizeof_PWArgs*uintptr(i)))
+}
+
+func makeWAFMapKey(v *WAFMapEntry, key string) error {
+	cstr, length := cstring(key)
+	if cstr == nil {
+		return types.ErrOutOfMemory
+	}
+	v.parameterName = cstr
+	v.parameterNameLength = C.uint64_t(length)
+	return nil
+}
+
+func makeWAFArray(v *WAFArray, len int) error {
+	return makeWAFLengthedValue((*WAFValue)(v), len, C.PWI_ARRAY)
+}
+
+const maxWAFStringSize = 4 * 1024
+
+func makeWAFString(v *WAFString, str string) error {
+	cstr, length := cstring(str)
+	if cstr == nil {
+		return types.ErrOutOfMemory
+	}
+	v.value = unsafe.Pointer(cstr)
+	v.nbEntries = C.uint64_t(length)
+	v._type = C.PWI_STRING
+	return nil
+}
+
+// cstring returns the C string of the given Go string `str` with up to
+// maxWAFStringSize bytes, along with the string size that was copied.
+func cstring(str string) (*C.char, int) {
+	// Limit the maximum string size to copy
+	l := len(str)
+	if l > maxWAFStringSize {
+		l = maxWAFStringSize
+	}
+	// Copy the string up to l.
+	// The copy is required as the pointer will be stored into the C structures,
+	// so using a Go pointer is impossible (and detected by the cgo pointer checks
+	// anyway).
+	return C.CString(str[:l]), l
+}
+
+func makeWAFInt(v *WAFInt, n int64) error {
+	return makeWAFBasicValue((*WAFValue)(v), uintptr(n), C.PWI_SIGNED_NUMBER)
+}
+
+func makeWAFUInt(v *WAFUInt, n uint64) error {
+	return makeWAFBasicValue((*WAFValue)(v), uintptr(n), C.PWI_UNSIGNED_NUMBER)
+}
+
+func makeWAFBasicValue(v *WAFValue, data uintptr, wafType C.PW_INPUT_TYPE) error {
+	v.value = unsafe.Pointer(data)
+	v._type = wafType
+	return nil
+}
+
+func makeWAFLengthedValue(v *WAFValue, len int, wafType C.PW_INPUT_TYPE) error {
+	// Allocate the zero'd array.
+	a := C.calloc(C.size_t(len), C.sizeof_PWArgs)
+	if a == nil {
+		return types.ErrOutOfMemory
+	}
+
+	v.value = a
+	v.nbEntries = C.uint64_t(len)
+	v._type = wafType
+	return nil
+}
+
+func freeWAFValue(v *WAFValue) {
+	switch v._type {
+	case C.PWI_MAP:
+		fallthrough
+	case C.PWI_ARRAY:
+		for child := 0; C.uint64_t(child) < v.nbEntries; child++ {
+			entry := (*WAFArray)(v).Index(child)
+			if entry.parameterName != nil {
+				C.free(unsafe.Pointer(entry.parameterName))
+			}
+			freeWAFValue(entry)
+		}
+	}
+
+	if v.value != nil {
+		C.free(v.value)
+	}
 }

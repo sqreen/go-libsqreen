@@ -12,6 +12,7 @@ package waf_test
 import (
 	"fmt"
 	"math/rand"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -33,7 +34,7 @@ func TestUsage(t *testing.T) {
 			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
 			require.NoError(t, err)
 			defer r.Close()
-			action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
+			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
 			require.NoError(t, err)
 			require.Equal(t, types.MonitorAction, action)
 			require.NotEmpty(t, match)
@@ -43,7 +44,7 @@ func TestUsage(t *testing.T) {
 			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
 			require.NoError(t, err)
 			defer r.Close()
-			action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
+			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
 			require.NoError(t, err)
 			require.Equal(t, types.BlockAction, action)
 			require.NotEmpty(t, match)
@@ -53,7 +54,7 @@ func TestUsage(t *testing.T) {
 			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
 			require.NoError(t, err)
 			defer r.Close()
-			action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "go client"}, time.Second)
+			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "go client"}, time.Second)
 			require.NoError(t, err)
 			require.Equal(t, types.NoAction, action)
 			require.Empty(t, match)
@@ -63,7 +64,7 @@ func TestUsage(t *testing.T) {
 			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
 			require.NoError(t, err)
 			defer r.Close()
-			action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "Arachni"}, 0)
+			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, 0)
 			require.Equal(t, types.ErrTimeout, err)
 			require.Equal(t, types.NoAction, action)
 			require.Empty(t, match)
@@ -73,7 +74,7 @@ func TestUsage(t *testing.T) {
 	t.Run("update an existing rule", func(t *testing.T) {
 		r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
 		require.NoError(t, err)
-		action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
+		action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
 		require.NoError(t, err)
 		require.Equal(t, types.MonitorAction, action)
 		require.NotEmpty(t, match)
@@ -81,7 +82,7 @@ func TestUsage(t *testing.T) {
 		r, err = waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Toto\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
 		require.NoError(t, err)
 		// It should no longer be detected
-		action, match, err = r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
+		action, match, err = r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
 		require.NoError(t, err)
 		require.Equal(t, types.NoAction, action)
 		require.Empty(t, match)
@@ -116,7 +117,7 @@ func TestUsage(t *testing.T) {
 				defer stopBarrier.Done() // Signal we are done when returning
 				for c := 0; c < nbRun; c++ {
 					i := rand.Int() % len(userAgents)
-					action, match, err := r.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": userAgents[i]}, time.Second)
+					action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": userAgents[i]}, time.Second)
 					require.NoError(t, err)
 					if i <= okIndex {
 						require.Equal(t, types.MonitorAction, action)
@@ -136,6 +137,7 @@ func TestUsage(t *testing.T) {
 	})
 
 	t.Run("one concurrent updater - 8000 concurrent users", func(t *testing.T) {
+		fmt.Println(runtime.GOMAXPROCS(0))
 		userAgents := [...]string{"Arachni", "Toto", "Tata", "Titi"}
 		var (
 			currentUserAgentIndex int
@@ -146,7 +148,6 @@ func TestUsage(t *testing.T) {
 		updateRule := func() (previousRule types.Rule) {
 			lock.Lock()
 			defer lock.Unlock()
-
 			// Select a random user agent
 			currentUserAgentIndex = rand.Intn(len(userAgents))
 			userAgent := userAgents[currentUserAgentIndex]
@@ -171,7 +172,7 @@ func TestUsage(t *testing.T) {
 		updateRule()
 
 		// The WAF rule will be updated once per second
-		updatePeriod := 100 * time.Millisecond
+		updatePeriod := 10 * time.Millisecond
 		tick := time.Tick(updatePeriod)
 
 		// Signal channel between this test and the updater to tear down the test
@@ -215,7 +216,7 @@ func TestUsage(t *testing.T) {
 					myUserAgentIndex := rand.Intn(len(userAgents))
 					myUserAgent := userAgents[myUserAgentIndex]
 					// Use the rule
-					action, match, err := rule.Run(types.RunInput{"#._server['HTTP_USER_AGENT']": myUserAgent}, time.Second)
+					action, match, err := rule.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": myUserAgent}, time.Second)
 					require.NoError(t, err)
 					if myUserAgentIndex == currentUserAgentIndex {
 						require.Equal(t, types.MonitorAction, action)
@@ -235,5 +236,58 @@ func TestUsage(t *testing.T) {
 		stopBarrier.Wait()         // Wait for the writer goroutines to be done
 		done <- struct{}{}         // Signal the reader they are done
 		<-done                     // Wait for the reader to be done
+	})
+}
+
+func TestWAFValues(t *testing.T) {
+	wafRule := `{"rules": [{"rule_id": "rule_custom_552203d1f33ce0705f6c215f462199f1", "filters": [{"operator": "@rx", "targets": ["v1"], "transformations": [], "value": "Arachni1"}, {"operator": "@rx", "targets": ["v2"], "transformations": [], "value": "Arachni2"}, {"operator": "@rx", "targets": ["v3"], "transformations": [], "value": "Arachni3"}, {"operator": "@rx", "targets": ["v4"], "transformations": [], "value": "Arachni4"}]}], "flows": [{"name": "rs_728137e2322e1d7a692ca3099f08e831-blocking", "steps": [{"id": "start", "rule_ids": ["rule_custom_552203d1f33ce0705f6c215f462199f1"], "on_match": "exit_block"}]}]}`
+	r, err := waf.NewRule("my rule", wafRule)
+	require.NoError(t, err)
+	defer r.Close()
+
+	t.Run("supported Go types", func(t *testing.T) {
+		ds := types.DataSet{
+			// string
+			"v1": "fooArachni1bar",
+			// string of map key
+			"v2": map[string]string{
+				"k1":         "",
+				"k2":         "",
+				"  Arachni2": "",
+				"k4":         "",
+			},
+			// string of map value
+			"v3": map[string]string{
+				"k1": "",
+				"k2": "Arachni3",
+				"k3": "",
+				"k4": "",
+			},
+			// string of array entry
+			"v4": []string{"ok", "ok", "\000Arachni4", "ok"},
+			// TODO: numbers
+		}
+		action, match, err := r.Run(ds, time.Second)
+		require.NoError(t, err)
+		require.Equal(t, types.BlockAction, action)
+		require.NotEmpty(t, match)
+	})
+
+	t.Run("unsupported Go types", func(t *testing.T) {
+		for _, ds := range []types.DataSet{
+			{"k1": 33.33},
+			{"k1": true},
+			// Struct could be considered as a map but is not implemented for now
+			// (probably useless for now).
+			{"k1": map[string]struct{ V string }{"k": {}}},
+			{"k1": func() {}},
+			{"k1": make(chan struct{})},
+		} {
+			ds := ds
+			t.Run("", func(t *testing.T) {
+				_, _, err := r.Run(ds, time.Second)
+				require.Error(t, err)
+			})
+		}
 	})
 }
