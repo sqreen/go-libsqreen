@@ -22,7 +22,7 @@ jobs:
         container: julio/azure-pipelines-golang
         versions: [ 1.13-alpine, 1.12-alpine ]
         targets:
-          GOARCH: [ amd64, 386 ]
+          GOARCH: [ amd64 ]
 
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
