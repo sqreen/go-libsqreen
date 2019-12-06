@@ -9,7 +9,7 @@ jobs:
       vmImage: ubuntu-latest
       go:
         container: golang
-        versions: [ 1.13, 1.12, 1.11 ]
+        versions: [ 1.13, 1.12 ]
         targets:
           GOARCH: [ amd64, 386 ]
 
@@ -17,12 +17,11 @@ jobs:
     parameters:
       name: Alpine_Linux
       vmImage: ubuntu-latest
-      continueOnError: true
       go:
         container: julio/azure-pipelines-golang
         versions: [ 1.13-alpine, 1.12-alpine ]
         targets:
-          GOARCH: [ amd64, 386 ]
+          GOARCH: [ amd64 ]
 
   - template: tools/azure-pipelines/test-go-versions.yml
     parameters:
@@ -30,7 +29,7 @@ jobs:
       vmImage: windows-latest
       go:
         container: golang
-        versions: [1.13, 1.12, 1.11]
+        versions: [ 1.13, 1.12 ]
         targets:
           GOARCH: [ amd64, 386 ]
 
@@ -41,7 +40,7 @@ jobs:
       - script: |
           go env
           clang -v
-          go test -v -x ./...
+          go test -v ./...
 
   - job: MacOS_386
     pool:
@@ -50,4 +49,4 @@ jobs:
       - script: |
           go env
           clang -v
-          env GOARCH=386 go test -v -x ./...
+          env GOARCH=386 go test -v ./...

@@ -11,13 +11,12 @@ import (
 )
 
 type Rule interface {
-	Run(data RunInput, timeout time.Duration) (action Action, info []byte, err error)
+	Run(data DataSet, timeout time.Duration) (action Action, info []byte, err error)
 	io.Closer
 }
 
-// RunInput is a map type whose keys must are binding accessor expressions and
-// their result as value.
-type RunInput map[string]interface{}
+// DataSet is a map type to associate binding accessor expressions to their results.
+type DataSet map[string]interface{}
 
 type Action int
 
@@ -36,6 +35,7 @@ const (
 	ErrInvalidRule
 	ErrInvalidFlow
 	ErrNoRule
+	ErrOutOfMemory
 )
 
 func (e RunError) Error() string {
@@ -52,6 +52,8 @@ func (e RunError) Error() string {
 		return "invalid flow"
 	case ErrNoRule:
 		return "no rule"
+	case ErrOutOfMemory:
+		return "out of memory"
 	default:
 		return fmt.Sprintf("unknown error `%d`", e)
 	}
@@ -69,6 +71,7 @@ var (
 	_ error = ErrInvalidRule
 	_ error = ErrInvalidFlow
 	_ error = ErrNoRule
+	_ error = ErrOutOfMemory
 )
 
 type NewRuleFunc = func(string, string) (Rule, error)

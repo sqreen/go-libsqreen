@@ -4,7 +4,7 @@ parameters:
   continueOnError: false
   go:
     container: golang
-    versions: [ 1.13, 1.12, 1.11 ]
+    versions: [ 1.13, 1.12 ]
     targets:
       GOARCH: [ amd64 ]
 
@@ -26,4 +26,4 @@ jobs:
         GOARCH: $(GOARCH)
     steps:
       - script: go env
-      - script: go test -v -x ./...
+      - script: go test -v ./...
