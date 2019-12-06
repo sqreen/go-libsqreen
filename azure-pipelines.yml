@@ -17,7 +17,6 @@ jobs:
     parameters:
       name: Alpine_Linux
       vmImage: ubuntu-latest
-      continueOnError: true
       go:
         container: julio/azure-pipelines-golang
         versions: [ 1.13-alpine, 1.12-alpine ]
