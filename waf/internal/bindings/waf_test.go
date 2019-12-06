@@ -5,19 +5,21 @@
 package bindings_test
 
 import (
+	"crypto/rand"
 	"testing"
 	"unsafe"
 
-	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCGO(t *testing.T) {
 	t.Run("a Go string address is the address of the string buffer", func(t *testing.T) {
 		// Create a random string
-		var str string
-		fuzz.New().NilChance(0).Fuzz(&str)
-		require.NotEmpty(t, str)
+		b := make([]byte, 1024)
+		if _, err := rand.Read(b); err != nil {
+			panic(err)
+		}
+		str := string(b)
 
 		// []byte(str) returns a copy of str because slices are mutable while
 		// strings are not.
