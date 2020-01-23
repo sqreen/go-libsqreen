@@ -19,9 +19,10 @@ import (
 	"github.com/sqreen/go-libsqreen/waf/types"
 )
 
-// #cgo CFLAGS: -I${SRCDIR}/../../../lib/waf/include
-// #cgo amd64,linux LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/linux -l:libwaf.a -l:libc++.a -l:libc++abi.a -l:libunwind.a -lm -Wl,-rpath=/lib64:/usr/lib64:/usr/local/lib64:/lib:/usr/lib:/usr/local/lib
-// #cgo amd64,darwin LDFLAGS: -L${SRCDIR}/../../../lib/waf/amd64/darwin -lwaf -lstdc++
+// #cgo CFLAGS: -I${SRCDIR}
+// #cgo LDFLAGS: -L${SRCDIR}
+// #cgo amd64,linux LDFLAGS: -l:libwaf_linux_amd64.a -l:libc++_linux_amd64.a -l:libc++abi_linux_amd64.a -l:libunwind_linux_amd64.a -lm -Wl,-rpath=/lib64:/usr/lib64:/usr/local/lib64:/lib:/usr/lib:/usr/local/lib
+// #cgo amd64,darwin LDFLAGS: -lwaf_darwin_amd64 -lstdc++
 // #include <stdlib.h>
 // #include <string.h>
 // #include "waf.h"

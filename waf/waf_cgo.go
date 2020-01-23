@@ -2,8 +2,6 @@
 // Please refer to our terms for more information:
 // https://www.sqreen.io/terms.html
 
-// +build !libsqreen_plugin
-
 package waf
 
 import (
