@@ -7,6 +7,7 @@ parameters:
     versions: [ 1.13, 1.12 ]
     targets:
       GOARCH: [ amd64 ]
+  testCommand: make test
 
 jobs:
   - job: ${{ parameters.name }}
@@ -26,4 +27,4 @@ jobs:
         GOARCH: $(GOARCH)
     steps:
       - script: go env
-      - script: go test -v ./...
+      - script: ${{ parameters.testCommand }}
