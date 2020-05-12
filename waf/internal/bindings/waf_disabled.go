@@ -12,9 +12,12 @@ import (
 	"github.com/sqreen/go-libsqreen/waf/types"
 )
 
-func NewRule(id string, rule string) (types.Rule, error) {
+func NewRule(_ string, _ string, _, _ uint64) (types.Rule, error) {
 	return nil, errors.New("waf disabled at compilation-time because of Go build tags excluding it")
 }
+
+// Static assert that NewRule has the expected signature.
+var _ types.NewRuleFunc = NewRule
 
 func Version() *string {
 	return nil

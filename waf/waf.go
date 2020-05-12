@@ -6,8 +6,8 @@ package waf
 
 import "github.com/sqreen/go-libsqreen/waf/types"
 
-func NewRule(id, rule string) (types.Rule, error) {
-	return newRuleImpl(id, rule)
+func NewRule(id, rule string, maxLen, maxDepth uint64) (types.Rule, error) {
+	return newRuleImpl(id, rule, maxLen, maxDepth)
 }
 
 // Static assert that `NewRule` has the expected signature

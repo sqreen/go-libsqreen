@@ -15,7 +15,7 @@ import (
 
 func TestUsage(t *testing.T) {
 	t.Run("rule", func(t *testing.T) {
-		r, err := waf.NewRule("my rule", `{"rules": [{"rule_id": "1","filters": [{"operator": "@rx","targets": ["#._server['HTTP_USER_AGENT']"],"value": "toto"}]}],"flows": [{"name": "arachni_detection","steps": [{"id": "start","rule_ids": ["1"],"on_match": "exit_monitor"}]}]}`)
+		r, err := waf.NewRule("my rule", `{"rules": [{"rule_id": "1","filters": [{"operator": "@rx","targets": ["#._server['HTTP_USER_AGENT']"],"value": "toto"}]}],"flows": [{"name": "arachni_detection","steps": [{"id": "start","rule_ids": ["1"],"on_match": "exit_monitor"}]}]}`, 33, 42)
 		require.Nil(t, r)
 		require.Error(t, err)
 	})

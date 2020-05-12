@@ -22,16 +22,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	defaultMaxDepth  = 5
+	defaultMaxLength = 100
+)
+
 func TestUsage(t *testing.T) {
 	t.Run("hello, waf!", func(t *testing.T) {
 		t.Run("version", func(t *testing.T) {
 			v := waf.Version()
 			require.NotNil(t, v)
-			require.Equal(t, "0.4.0", *v)
+			require.Equal(t, "0.6.1", *v)
 		})
 
 		t.Run("monitor", func(t *testing.T) {
-			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
+			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}", defaultMaxLength, defaultMaxDepth)
 			require.NoError(t, err)
 			defer r.Close()
 			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
@@ -41,7 +46,7 @@ func TestUsage(t *testing.T) {
 		})
 
 		t.Run("block", func(t *testing.T) {
-			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
+			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}", defaultMaxLength, defaultMaxDepth)
 			require.NoError(t, err)
 			defer r.Close()
 			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
@@ -51,7 +56,7 @@ func TestUsage(t *testing.T) {
 		})
 
 		t.Run("no action", func(t *testing.T) {
-			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
+			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}", defaultMaxLength, defaultMaxDepth)
 			require.NoError(t, err)
 			defer r.Close()
 			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "go client"}, time.Second)
@@ -61,7 +66,7 @@ func TestUsage(t *testing.T) {
 		})
 
 		t.Run("timeout", func(t *testing.T) {
-			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}")
+			r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_block\"}]}]}", defaultMaxLength, defaultMaxDepth)
 			require.NoError(t, err)
 			defer r.Close()
 			action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, 0)
@@ -72,14 +77,14 @@ func TestUsage(t *testing.T) {
 	})
 
 	t.Run("update an existing rule", func(t *testing.T) {
-		r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
+		r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}", defaultMaxLength, defaultMaxDepth)
 		require.NoError(t, err)
 		action, match, err := r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
 		require.NoError(t, err)
 		require.Equal(t, types.MonitorAction, action)
 		require.NotEmpty(t, match)
 
-		r, err = waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Toto\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}")
+		r, err = waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Toto\"}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\"],\"on_match\": \"exit_monitor\"}]}]}", defaultMaxLength, defaultMaxDepth)
 		require.NoError(t, err)
 		// It should no longer be detected
 		action, match, err = r.Run(types.DataSet{"#._server['HTTP_USER_AGENT']": "Arachni"}, time.Second)
@@ -93,7 +98,7 @@ func TestUsage(t *testing.T) {
 		// Create a store that will be checked more often than actually required by
 		// its period. So that we cover the case where the store is not always
 		// ready.
-		r, err := waf.NewRule("rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]},{\"rule_id\": \"2\",\"filters\": [{\"operator\": \"@pm\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": [\"bla\", \"blo\", \"Toto\"]}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\",\"2\"],\"on_match\": \"exit_monitor\"}]}]}")
+		r, err := waf.NewRule("rule", "{\"rules\": [{\"rule_id\": \"1\",\"filters\": [{\"operator\": \"@rx\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": \"Arachni\"}]},{\"rule_id\": \"2\",\"filters\": [{\"operator\": \"@pm\",\"targets\": [\"#._server['HTTP_USER_AGENT']\"],\"value\": [\"bla\", \"blo\", \"Toto\"]}]}],\"flows\": [{\"name\": \"arachni_detection\",\"steps\": [{\"id\": \"start\",\"rule_ids\": [\"1\",\"2\"],\"on_match\": \"exit_monitor\"}]}]}", defaultMaxLength, defaultMaxDepth)
 		require.NoError(t, err)
 		defer r.Close()
 
@@ -163,7 +168,7 @@ func TestUsage(t *testing.T) {
 
 			// Create the new rule
 			var err error
-			rule, err = waf.NewRule(ruleIDStr, wafRule)
+			rule, err = waf.NewRule(ruleIDStr, wafRule, defaultMaxLength, defaultMaxDepth)
 			require.NoError(t, err)
 			return lastRule
 		}
@@ -241,7 +246,7 @@ func TestUsage(t *testing.T) {
 
 func TestWAFValues(t *testing.T) {
 	wafRule := `{"rules": [{"rule_id": "rule_custom_552203d1f33ce0705f6c215f462199f1", "filters": [{"operator": "@rx", "targets": ["v1"], "transformations": [], "value": "Arachni1"}, {"operator": "@rx", "targets": ["v2"], "transformations": [], "value": "Arachni2"}, {"operator": "@rx", "targets": ["v3"], "transformations": [], "value": "Arachni3"}, {"operator": "@rx", "targets": ["v4"], "transformations": [], "value": "Arachni4"}]}], "flows": [{"name": "rs_728137e2322e1d7a692ca3099f08e831-blocking", "steps": [{"id": "start", "rule_ids": ["rule_custom_552203d1f33ce0705f6c215f462199f1"], "on_match": "exit_block"}]}]}`
-	r, err := waf.NewRule("my rule", wafRule)
+	r, err := waf.NewRule("my rule", wafRule, defaultMaxLength, defaultMaxDepth)
 	require.NoError(t, err)
 	defer r.Close()
 
@@ -289,5 +294,71 @@ func TestWAFValues(t *testing.T) {
 				require.Error(t, err)
 			})
 		}
+	})
+}
+
+func TestBugFixes(t *testing.T) {
+	t.Run("SQR-9947", func(t *testing.T) {
+		// SQR-9947 AND was behaving like a OR
+		// To test it, we use the following WAF rule on Content-Type and User-Agent.
+		r, err := waf.NewRule("my rule", "{\"rules\": [{\"rule_id\": \"rule_custom_674db60b38d8fe44fbd7e99ea9986198\", \"filters\": [{\"operator\": \"!@rx\", \"targets\": [\"#.Request.Header['Content-Type']\"], \"transformations\": [], \"value\": \"^[\\\\w/.+-]+(?:\\\\s?;\\\\s?(?:boundary|charset)\\\\s?=\\\\s?['\\\\\\\"\\\\w.(?:)+,/:=?-]+)?$\"}, {\"operator\": \"!@rx\", \"targets\": [\"#.Request.UserAgent\"], \"transformations\": [], \"value\": \"\\\\bCypress\\\\b\"}]}], \"flows\": [{\"name\": \"rs_412281958f15e71844a5e634efb635a7-monitoring\", \"steps\": [{\"id\": \"start\", \"rule_ids\": [\"rule_custom_674db60b38d8fe44fbd7e99ea9986198\"], \"on_match\": \"exit_monitor\"}]}], \"config\": {\"stop_on_missing_target\": true}}", defaultMaxLength, defaultMaxDepth)
+		require.NoError(t, err)
+		defer r.Close()
+
+		t.Run("no match", func(t *testing.T) {
+			t.Run("none of the two headers", func(t *testing.T) {
+				action, match, err := r.Run(types.DataSet{}, time.Second)
+				require.NoError(t, err)
+				require.Equal(t, types.NoAction, action)
+				require.Empty(t, match)
+			})
+
+			t.Run("none of the two headers", func(t *testing.T) {
+				data := types.DataSet{
+					"#.Request.Header['Not-My-Header']": "doesn't match",
+				}
+				action, match, err := r.Run(data, time.Second)
+				require.NoError(t, err)
+				require.Equal(t, types.NoAction, action)
+				require.Empty(t, match)
+			})
+
+			t.Run("one of the two headers", func(t *testing.T) {
+				t.Run("Content-Type only", func(t *testing.T) {
+					data := types.DataSet{
+						"#.Request.Header['Content-Type']": "doesn't match",
+					}
+					action, match, err := r.Run(data, time.Second)
+					require.NoError(t, err)
+					require.Equal(t, types.NoAction, action)
+					require.Empty(t, match)
+				})
+
+				t.Run("User-Agent only", func(t *testing.T) {
+					data := types.DataSet{
+						"#.Request.UserAgent": "doesn't match",
+					}
+					action, match, err := r.Run(data, time.Second)
+					require.NoError(t, err)
+					require.Equal(t, types.NoAction, action)
+					require.Empty(t, match)
+				})
+			})
+		})
+
+		t.Run("match", func(t *testing.T) {
+			t.Run("both headers", func(t *testing.T) {
+				t.Run("User-Agent only", func(t *testing.T) {
+					data := types.DataSet{
+						"#.Request.Header['Content-Type']": "doesn't match",
+						"#.Request.UserAgent":              "doesn't match",
+					}
+					action, match, err := r.Run(data, time.Second)
+					require.NoError(t, err)
+					require.Equal(t, types.MonitorAction, action)
+					require.NotEmpty(t, match)
+				})
+			})
+		})
 	})
 }
