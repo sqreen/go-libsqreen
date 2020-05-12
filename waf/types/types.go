@@ -74,5 +74,5 @@ var (
 	_ error = ErrOutOfMemory
 )
 
-type NewRuleFunc = func(string, string) (Rule, error)
+type NewRuleFunc = func(string, string, uint64, uint64) (Rule, error)
 type VersionFunc = func() *string
