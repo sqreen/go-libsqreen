@@ -272,7 +272,7 @@ func marshalWAFArray(data reflect.Value, v *WAFArray, depth int) error {
 }
 
 func makeWAFMap(v *WAFValue, len uint) (*WAFMap, error) {
-	if err := v.setMapContainer(C.uint64_t(len)); err != nil {
+	if err := v.setMapContainer(C.size_t(len)); err != nil {
 		return nil, err
 	}
 	return (*WAFMap)(v), nil
