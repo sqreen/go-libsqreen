@@ -158,7 +158,7 @@ func (v *WAFValue) setUInt64(n C.uint64_t) {
 	*v.uint64Ptr() = n
 }
 
-func (v *WAFValue) setVectorContainer(typ C.PW_INPUT_TYPE, length C.uint64_t) error {
+func (v *WAFValue) setVectorContainer(typ C.PW_INPUT_TYPE, length C.size_t) error {
 	// Allocate the zero'd array.
 	a := (*C.PWArgs)(C.calloc(length, C.sizeof_PWArgs))
 	if a == nil {
@@ -166,16 +166,16 @@ func (v *WAFValue) setVectorContainer(typ C.PW_INPUT_TYPE, length C.uint64_t) er
 	}
 
 	v._type = typ
-	v.nbEntries = length
+	v.nbEntries = C.uint64_t(length)
 	*v.arrayPtr() = a
 	return nil
 }
 
-func (v *WAFValue) setArrayContainer(length C.uint64_t) error {
+func (v *WAFValue) setArrayContainer(length C.size_t) error {
 	return v.setVectorContainer(C.PWI_ARRAY, length)
 }
 
-func (v *WAFValue) setMapContainer(length C.uint64_t) error {
+func (v *WAFValue) setMapContainer(length C.size_t) error {
 	return v.setVectorContainer(C.PWI_MAP, length)
 }
 
