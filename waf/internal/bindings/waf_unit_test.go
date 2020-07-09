@@ -2,6 +2,11 @@
 // Please refer to our terms for more information:
 // https://www.sqreen.io/terms.html
 
+// +build !sqreen_nowaf
+// +build !windows
+// +build amd64
+// +build linux darwin
+
 package bindings
 
 import (
