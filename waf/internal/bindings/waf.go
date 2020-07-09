@@ -206,6 +206,14 @@ func marshalWAFValueRec(data reflect.Value, v *WAFValue, depth int) error {
 	default:
 		return fmt.Errorf("unexpected WAF input type `%T`", data.Interface())
 
+	case reflect.Bool:
+		var b int64
+		if data.Bool() {
+			b = 1
+		}
+		makeWAFInt(v, b)
+		return nil
+
 	case reflect.Ptr, reflect.Interface:
 		// This interface or pointer traversal is not counted in the depth
 		return marshalWAFValueRec(data.Elem(), v, depth)
