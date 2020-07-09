@@ -11,6 +11,7 @@ package bindings
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"time"
 	"unsafe"
@@ -136,7 +137,7 @@ type (
 
 // Return the pointer to the union field `value`. It can be casted to the union
 // type that needs to be accessed.
-func (v *WAFValue) fieldPointer() unsafe.Pointer { return unsafe.Pointer((&v.value[0])) }
+func (v *WAFValue) fieldPointer() unsafe.Pointer { return unsafe.Pointer(&v.value[0]) }
 func (v *WAFValue) arrayPtr() **C.PWArgs         { return (**C.PWArgs)(v.fieldPointer()) }
 func (v *WAFValue) int64Ptr() *C.int64_t         { return (*C.int64_t)(v.fieldPointer()) }
 func (v *WAFValue) uint64Ptr() *C.uint64_t       { return (*C.uint64_t)(v.fieldPointer()) }
@@ -228,6 +229,10 @@ func marshalWAFValueRec(data reflect.Value, v *WAFValue, depth int) error {
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		makeWAFInt(v, data.Int())
+		return nil
+
+	case reflect.Float32, reflect.Float64:
+		makeWAFInt(v, int64(math.Round(data.Float())))
 		return nil
 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
