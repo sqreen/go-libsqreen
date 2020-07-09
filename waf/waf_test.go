@@ -32,7 +32,7 @@ func TestUsage(t *testing.T) {
 		t.Run("version", func(t *testing.T) {
 			v := waf.Version()
 			require.NotNil(t, v)
-			require.Equal(t, "0.6.1", *v)
+			require.Equal(t, "0.7.0", *v)
 		})
 
 		t.Run("monitor", func(t *testing.T) {
@@ -280,8 +280,6 @@ func TestWAFValues(t *testing.T) {
 
 	t.Run("unsupported Go types", func(t *testing.T) {
 		for _, ds := range []types.DataSet{
-			{"k1": 33.33},
-			{"k1": true},
 			// Struct could be considered as a map but is not implemented for now
 			// (probably useless for now).
 			{"k1": map[string]struct{ V string }{"k": {}}},
