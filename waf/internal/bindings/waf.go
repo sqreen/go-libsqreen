@@ -367,9 +367,10 @@ func freeWAFValue(v *WAFValue) {
 			}
 			freeWAFValue(entry)
 		}
-	}
+		fallthrough
 
-	if value := *(*unsafe.Pointer)(v.fieldPointer()); value != nil {
+	case C.PWI_STRING:
+		value := *(*unsafe.Pointer)(v.fieldPointer())
 		C.free(value)
 	}
 }
