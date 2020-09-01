@@ -204,7 +204,7 @@ func marshalWAFValueRec(data reflect.Value, v *WAFValue, depth int) error {
 
 	switch data.Kind() {
 	default:
-		return fmt.Errorf("unexpected WAF input type `%T`", data.Interface())
+		return errors.Errorf("unexpected WAF input type `%s`", data.Kind().String())
 
 	case reflect.Bool:
 		var b int64
