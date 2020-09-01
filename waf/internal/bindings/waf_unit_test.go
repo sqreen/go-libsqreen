@@ -80,6 +80,13 @@ func TestMarshal(t *testing.T) {
 			},
 			ExpectedError: true,
 		},
+		{
+			Name: "having a zero value",
+			Data: types.DataSet{
+				"i": nil,
+			},
+			ExpectedError: true,
+		},
 	} {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
