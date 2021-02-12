@@ -2,7 +2,6 @@
 // Please refer to our terms for more information:
 // https://www.sqreen.io/terms.html
 
-// +build !sqreen_nowaf
 // +build !windows
 // +build amd64
 // +build linux darwin
@@ -10,9 +9,12 @@
 package bindings
 
 import (
+	"context"
 	"fmt"
-	"math"
 	"reflect"
+	"runtime/trace"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -29,8 +31,16 @@ import (
 // #include "waf.h"
 import "C"
 
+// Static assert that the function have the expected signatures
+var (
+	_ types.NewRuleFunc            = NewRule
+	_ types.NewAdditiveContextFunc = NewAdditiveContext
+	_ types.VersionFunc            = Version
+	_ types.HealthFunc             = Health
+)
+
 func Version() *string {
-	v := C.powerwaf_getVersion()
+	v := C.pw_getVersion()
 	major := uint16(v.major)
 	minor := uint16(v.minor)
 	patch := uint16(v.patch)
@@ -38,62 +48,77 @@ func Version() *string {
 	return &str
 }
 
-type Rule struct {
-	id *C.char
-}
+func Health() error { return nil }
 
-func NewRule(id string, rule string, maxLen, maxDepth uint64) (types.Rule, error) {
-	rid := C.CString(id)
+type (
+	Rule struct {
+		handle     C.PWHandle
+		encoder    Encoder
+		refCounter AtomicRefCounter
+	}
+)
 
+func NewRule(rule string) (types.Rule, error) {
+	//sr := stringRef(rule)
 	crule := C.CString(rule)
 	defer C.free(unsafe.Pointer(crule))
-
-	cfg := &C.PWConfig{
-		maxArrayLength: C.uint64_t(maxLen),
-		maxMapDepth:    C.uint64_t(maxDepth),
+	handle := C.pw_initH(crule, nil, nil)
+	if handle == nil {
+		return nil, errors.New("could not instantiate the waf rule")
 	}
 
-	ok := C.powerwaf_init(rid, crule, cfg)
-	if !ok {
-		return nil, fmt.Errorf("could instantiate the waf rule `%s`", id)
+	r := &Rule{
+		handle: handle,
+		encoder: Encoder{
+			MaxValueDepth:   C.PW_MAX_MAP_DEPTH,
+			MaxStringLength: C.PW_MAX_STRING_LENGTH,
+			MaxArrayLength:  C.PW_MAX_ARRAY_LENGTH,
+			MaxMapLength:    C.PW_MAX_ARRAY_LENGTH,
+		},
 	}
-	return Rule{
-		id: rid,
-	}, nil
+	r.refCounter.init()
+	return r, nil
 }
 
-// Static assert that NewRule has the expected signature.
-var _ types.NewRuleFunc = NewRule
+func (r *Rule) addRef() (ok bool) {
+	return r.refCounter.increment() != 0
+}
 
-func (r Rule) Close() error {
-	C.powerwaf_clearRule(r.id)
-	C.free(unsafe.Pointer(r.id))
+func (r *Rule) unRef() {
+	if r.refCounter.decrement() == 0 {
+		// The rule is no longer referenced, we can free its memory
+		trace.Log(context.Background(), "sqreen/waf", "rule memory release")
+		r.free()
+	}
+}
+
+// Close the WAF rule. The underlying C memory is released as soon as there are
+// no more execution contexts using the rule.
+func (r *Rule) Close() error {
+	r.unRef()
+	// note that we intentionally let additive contexts continue using the rule,
+	// the reference counting will do the job and deallocate the memory once every
+	// reference disappear
 	return nil
 }
 
+func (r *Rule) free() {
+	C.pw_clearRuleH(r.handle)
+	// Set the handle to nil so that unit tests can check this function was called
+	r.handle = nil
+}
+
 func (r Rule) Run(data types.DataSet, timeout time.Duration) (action types.Action, info []byte, err error) {
-	wafValue, err := marshalWAFValue(data)
+	wafValue, err := r.encoder.marshalWAFValue(data)
 	if err != nil {
 		return 0, nil, err
 	}
-	defer freeWAFValue(wafValue)
+	defer wafValue.free()
 
-	ret := C.powerwaf_run(r.id, (*C.PWArgs)(wafValue), C.size_t(timeout/time.Microsecond))
-	defer C.powerwaf_freeReturn(ret)
+	ret := C.pw_runH(r.handle, C.PWArgs(wafValue), C.size_t(timeout/time.Microsecond))
+	defer C.pw_freeReturn(ret)
 
-	switch a := ret.action; a {
-	case C.PW_GOOD:
-		return types.NoAction, nil, nil
-	case C.PW_MONITOR:
-		action = types.MonitorAction
-	case C.PW_BLOCK:
-		action = types.BlockAction
-	default:
-		return 0, nil, goRunError(a, ret.data)
-	}
-
-	info = C.GoBytes(unsafe.Pointer(ret.data), C.int(C.strlen(ret.data)))
-	return action, info, nil
+	return goReturnValues(ret)
 }
 
 func goRunError(cErr C.PW_RET_CODE, data *C.char) error {
@@ -121,256 +146,133 @@ func goRunError(cErr C.PW_RET_CODE, data *C.char) error {
 	return err
 }
 
-type (
-	WAFValue    C.PWArgs
-	WAFInt      C.PWArgs
-	WAFUInt     C.PWArgs
-	WAFString   WAFValue
-	WAFMap      C.PWArgs
-	WAFMapEntry C.PWArgs
-	WAFArray    C.PWArgs
-
-	// Helper type to get or set the union value in `C.PWArgs`.
-	// Unions are not supported by CGO for now, and this helper type uses pointer
-	// arithmetic to implement its accesses.
-)
-
-// Return the pointer to the union field `value`. It can be casted to the union
-// type that needs to be accessed.
-func (v *WAFValue) fieldPointer() unsafe.Pointer { return unsafe.Pointer(&v.value[0]) }
-func (v *WAFValue) arrayPtr() **C.PWArgs         { return (**C.PWArgs)(v.fieldPointer()) }
-func (v *WAFValue) int64Ptr() *C.int64_t         { return (*C.int64_t)(v.fieldPointer()) }
-func (v *WAFValue) uint64Ptr() *C.uint64_t       { return (*C.uint64_t)(v.fieldPointer()) }
-func (v *WAFValue) stringPtr() **C.char          { return (**C.char)(v.fieldPointer()) }
-
-func (v *WAFValue) setString(str *C.char, length C.uint64_t) {
-	v._type = C.PWI_STRING
-	v.nbEntries = C.uint64_t(length)
-	*v.stringPtr() = str
+type AdditiveContext struct {
+	rule   *Rule
+	handle C.PWAddContext
+	mu     sync.Mutex
 }
 
-func (v *WAFValue) setInt64(n C.int64_t) {
-	v._type = C.PWI_SIGNED_NUMBER
-	*v.int64Ptr() = n
-}
-
-func (v *WAFValue) setUInt64(n C.uint64_t) {
-	v._type = C.PWI_UNSIGNED_NUMBER
-	*v.uint64Ptr() = n
-}
-
-func (v *WAFValue) setVectorContainer(typ C.PW_INPUT_TYPE, length C.size_t) error {
-	// Allocate the zero'd array.
-	a := (*C.PWArgs)(C.calloc(length, C.sizeof_PWArgs))
-	if a == nil {
-		return types.ErrOutOfMemory
-	}
-
-	v._type = typ
-	v.nbEntries = C.uint64_t(length)
-	*v.arrayPtr() = a
-	return nil
-}
-
-func (v *WAFValue) setArrayContainer(length C.size_t) error {
-	return v.setVectorContainer(C.PWI_ARRAY, length)
-}
-
-func (v *WAFValue) setMapContainer(length C.size_t) error {
-	return v.setVectorContainer(C.PWI_MAP, length)
-}
-
-func (v *WAFValue) setMapKey(str *C.char, length C.uint64_t) {
-	v.parameterName = str
-	v.parameterNameLength = length
-}
-
-const maxWAFValueDepth = 10
-
-func marshalWAFValue(data types.DataSet) (*WAFValue, error) {
-	v := new(WAFValue)
-	if err := marshalWAFValueRec(reflect.ValueOf(data), v, maxWAFValueDepth); err != nil {
-		freeWAFValue(v)
-		return nil, err
-	}
-	return v, nil
-}
-
-func marshalWAFValueRec(data reflect.Value, v *WAFValue, depth int) error {
-	if depth == 0 {
-		// Stop traversing and keep v to its current zero value.
+func NewAdditiveContext(r types.Rule) types.Rule {
+	rule, _ := r.(*Rule)
+	if rule == nil {
 		return nil
 	}
 
-	switch data.Kind() {
+	if !rule.addRef() {
+		return nil
+	}
+
+	handle := C.pw_initAdditiveH(rule.handle)
+	if handle == nil {
+		return nil
+	}
+
+	return &AdditiveContext{
+		rule:   rule,
+		handle: handle,
+	}
+}
+
+func (c *AdditiveContext) Run(data types.DataSet, timeout time.Duration) (action types.Action, info []byte, err error) {
+	wafValue, err := c.rule.encoder.marshalWAFValue(data)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	ret := c.run(wafValue, timeout)
+	defer C.pw_freeReturn(ret)
+
+	action, info, err = goReturnValues(ret)
+	if err == types.ErrInvalidCall || err == types.ErrTimeout {
+		wafValue.free()
+	}
+	return action, info, err
+}
+
+func (c *AdditiveContext) run(data WAFValue, timeout time.Duration) C.PWRet {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return C.pw_runAdditive(c.handle, C.PWArgs(data), C.size_t(timeout/time.Microsecond))
+}
+
+func (c *AdditiveContext) Close() error {
+	trace.Log(context.Background(), "sqreen/waf", "rule additive context memory release")
+	C.pw_clearAdditive(c.handle)
+	return c.rule.Close()
+}
+
+func goReturnValues(ret C.PWRet) (action types.Action, info []byte, err error) {
+	switch a := ret.action; a {
+	case C.PW_GOOD:
+		return types.NoAction, nil, nil
+	case C.PW_MONITOR:
+		action = types.MonitorAction
+	case C.PW_BLOCK:
+		action = types.BlockAction
 	default:
-		return errors.Errorf("unexpected WAF input type `%s`", data.Kind().String())
-
-	case reflect.Bool:
-		var b int64
-		if data.Bool() {
-			b = 1
-		}
-		makeWAFInt(v, b)
-		return nil
-
-	case reflect.Ptr, reflect.Interface:
-		// This interface or pointer traversal is not counted in the depth
-		return marshalWAFValueRec(data.Elem(), v, depth)
-
-	case reflect.String:
-		return makeWAFString(v, data.String())
-
-	case reflect.Map:
-		m, err := makeWAFMap(v, uint(data.Len()))
-		if err != nil {
-			return err
-		}
-		return marshalWAFMap(data, m, depth-1)
-
-	case reflect.Array, reflect.Slice:
-		a, err := makeWAFArray(v, uint(data.Len()))
-		if err != nil {
-			return err
-		}
-		return marshalWAFArray(data, a, depth-1)
-
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		makeWAFInt(v, data.Int())
-		return nil
-
-	case reflect.Float32, reflect.Float64:
-		makeWAFInt(v, int64(math.Round(data.Float())))
-		return nil
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
-		reflect.Uint64:
-		makeWAFUInt(v, data.Uint())
-		return nil
+		return types.NoAction, nil, goRunError(a, ret.data)
 	}
+	info = C.GoBytes(unsafe.Pointer(ret.data), C.int(C.strlen(ret.data)))
+	return action, info, err
 }
 
-func marshalWAFMap(data reflect.Value, v *WAFMap, depth int) error {
-	// Only allow string key types
-	if data.Type().Key().Kind() != reflect.String {
-		return errors.Errorf("unexpected WAF map key type `%T` instead of `string`", data.Interface())
-	}
-	// Marshal map entries
-	for i, iter := 0, data.MapRange(); iter.Next(); i++ {
-		entry := v.Index(i)
-		// Add the key first in order to get key insertion errors before traversing
-		// the value. It would be a waste if in the end the key cannot be added.
-		key := iter.Key().String()
-		if err := makeWAFMapKey(entry, key); err != nil {
-			return errors.Wrap(err, "could not add a new map key")
+type AtomicRefCounter uint32
+
+func (i *AtomicRefCounter) unwrap() *uint32 {
+	return (*uint32)(i)
+}
+
+func (i *AtomicRefCounter) init() {
+	atomic.StoreUint32(i.unwrap(), 1)
+}
+
+func (i *AtomicRefCounter) add(delta uint32) uint32 {
+	return atomic.AddUint32(i.unwrap(), delta)
+}
+
+// CAS implementation in order to enforce no one can +1 right after the -1
+// leading to 0 was done. For example, in the case of the WAF rule, the rule
+// ref counter is decremented when receiving another WAF rule; meantime, a
+// request can try to increment it when creating a WAF additive context:
+//   1. Rule reload: counter reaches 0 and the memory is free'd
+//   2. A request might still reference the now free'd WAF rule, and we now
+//      need to avoid acccepting to increment the counter again to 1.
+// 0 is magic number saying it is free'd and the protected value should no
+// longer be used.
+func (i *AtomicRefCounter) increment() uint32 {
+	addr := i.unwrap()
+	for {
+		current := atomic.LoadUint32(addr)
+		if current == 0 {
+			// The object was released
+			return 0
 		}
-		// Marshal the key's value
-		if err := marshalWAFValueRec(iter.Value(), (*WAFValue)(entry), depth); err != nil {
-			return err
+		new := current + 1
+		if swapped := atomic.CompareAndSwapUint32(addr, current, new); swapped {
+			return new
 		}
 	}
-	return nil
 }
 
-func marshalWAFArray(data reflect.Value, v *WAFArray, depth int) error {
-	// Profiling shows `data.Len()` is called every loop if it is
-	// used in the loop condition.
-	l := data.Len()
-	for i := 0; i < l; i++ {
-		if err := marshalWAFValueRec(data.Index(i), v.Index(i), depth); err != nil {
-			return err
-		}
-	}
-	return nil
+func (i *AtomicRefCounter) decrement() uint32 {
+	const d = ^uint32(0)
+	return i.add(d)
 }
 
-func makeWAFMap(v *WAFValue, len uint) (*WAFMap, error) {
-	if err := v.setMapContainer(C.size_t(len)); err != nil {
-		return nil, err
-	}
-	return (*WAFMap)(v), nil
+type stringRefType struct {
+	gostr string
+	buf   *C.char
+	len   int
 }
 
-func (m *WAFMap) Index(i int) *WAFMapEntry {
-	entry := (*WAFArray)(m).Index(i)
-	return (*WAFMapEntry)(entry)
-}
-
-func (a *WAFArray) Index(i int) *WAFValue {
-	if C.uint64_t(i) >= a.nbEntries {
-		panic(errors.New("out of bounds access to WAFArray"))
-	}
-	// Go pointer arithmetic equivalent to the C expression `a->value.array[i]`
-	base := uintptr(unsafe.Pointer(*(*WAFValue)(a).arrayPtr()))
-	return (*WAFValue)(unsafe.Pointer(base + C.sizeof_PWArgs*uintptr(i)))
-}
-
-func makeWAFMapKey(v *WAFMapEntry, key string) error {
-	cstr, length := cstring(key)
-	if cstr == nil {
-		return types.ErrOutOfMemory
-	}
-	(*WAFValue)(v).setMapKey(cstr, C.uint64_t(length))
-	return nil
-}
-
-const maxWAFStringSize uint = 4 * 1024
-
-func makeWAFString(v *WAFValue, str string) error {
-	cstr, length := cstring(str)
-	if cstr == nil {
-		return types.ErrOutOfMemory
-	}
-
-	v.setString(cstr, C.uint64_t(length))
-	return nil
-}
-
-// cstring returns the C string of the given Go string `str` with up to
-// maxWAFStringSize bytes, along with the string size that was copied.
-func cstring(str string) (*C.char, uint) {
-	// Limit the maximum string size to copy
-	l := uint(len(str))
-	if l > maxWAFStringSize {
-		l = maxWAFStringSize
-	}
-	// Copy the string up to l.
-	// The copy is required as the pointer will be stored into the C structures,
-	// so using a Go pointer is impossible (and detected by the cgo pointer checks
-	// anyway).
-	return C.CString(str[:l]), l
-}
-
-func makeWAFInt(v *WAFValue, n int64) {
-	v.setInt64(C.int64_t(n))
-}
-
-func makeWAFUInt(v *WAFValue, n uint64) {
-	v.setUInt64(C.uint64_t(n))
-}
-
-func makeWAFArray(v *WAFValue, len uint) (*WAFArray, error) {
-	if err := v.setArrayContainer(C.size_t(len)); err != nil {
-		return nil, err
-	}
-	return (*WAFArray)(v), nil
-
-}
-
-func freeWAFValue(v *WAFValue) {
-	switch v._type {
-	case C.PWI_MAP, C.PWI_ARRAY:
-		for child := 0; C.uint64_t(child) < v.nbEntries; child++ {
-			entry := (*WAFArray)(v).Index(child)
-			if entry.parameterName != nil {
-				C.free(unsafe.Pointer(entry.parameterName))
-			}
-			freeWAFValue(entry)
-		}
-		fallthrough
-
-	case C.PWI_STRING:
-		value := *(*unsafe.Pointer)(v.fieldPointer())
-		C.free(value)
+// Return the C-compatible string buffer and length. A reference to the Go
+// string must be kept during its usage in C code. Note that the string is not
+// null-terminated.
+func stringRef(s string) stringRefType {
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	return stringRefType{
+		gostr: s,
+		buf:   (*C.char)(unsafe.Pointer(sh.Data)),
+		len:   sh.Len,
 	}
 }

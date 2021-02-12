@@ -2,23 +2,25 @@
 // Please refer to our terms for more information:
 // https://www.sqreen.io/terms.html
 
-// +build !cgo sqreen_nowaf amd64,windows !amd64
+// +build !cgo amd64,windows !amd64
 
 package bindings
 
 import (
-	"errors"
-
 	"github.com/sqreen/go-libsqreen/waf/types"
 )
 
-func NewRule(_ string, _ string, _, _ uint64) (types.Rule, error) {
-	return nil, errors.New("waf disabled at compilation-time because of Go build tags excluding it")
+func NewRule(string) (types.Rule, error) {
+	return nil, disabledError
 }
 
-// Static assert that NewRule has the expected signature.
-var _ types.NewRuleFunc = NewRule
+func Version() *string { return nil }
 
-func Version() *string {
-	return nil
-}
+func Health() error { return disabledError }
+
+// Static assert that the function have the expected signatures
+var (
+	_ types.NewRuleFunc = NewRule
+	_ types.VersionFunc = Version
+	_ types.HealthFunc  = Health
+)
