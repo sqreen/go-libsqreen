@@ -15,9 +15,6 @@ jobs:
         cgo_enabled:
           - 0 # test it compiles when cgo is disabled
           - 1
-        goarch:
-          - "" # defaults to amd64 here
-          - 386 # 386 is not an unsupported waf target but still executable in amd64
         cgocheck:
           - 1
           - 2
@@ -29,7 +26,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
-      - run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} GOARCH=${{ matrix.goarch }} go test ./... # note: do not support large number of goroutines for -race
+      - run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./... # note: do not support large number of goroutines for -race
 
   # Same tests but on the official golang container for linux
   # Docker for Windows is not yet available on Github Actions.
@@ -47,7 +44,7 @@ jobs:
       # Install gcc and the libc headers on alpine images
       - if: ${{ matrix.distribution == 'alpine' }}
         run: apk add gcc musl-dev libc6-compat git
-      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} GOARCH=${{ matrix.goarch }}  go test ${{ matrix.go-test-options }} ./...
+      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./...
 
   # debian stretch doesn't have the latest go versions
   golang-debian-stretch-container:
@@ -60,4 +57,4 @@ jobs:
       image: golang:${{ matrix.go-version }}-stretch
     steps:
       - uses: actions/checkout@v2
-      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} GOARCH=${{ matrix.goarch }}  go test ${{ matrix.go-test-options }} ./...
+      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./...
