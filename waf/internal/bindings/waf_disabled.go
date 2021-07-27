@@ -14,6 +14,10 @@ func NewRule(string) (types.Rule, error) {
 	return nil, disabledError
 }
 
+func NewAdditiveContext(types.Rule) types.Rule {
+	return nil
+}
+
 func Version() *string { return nil }
 
 func Health() error { return disabledError }
