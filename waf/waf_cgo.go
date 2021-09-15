@@ -9,10 +9,18 @@ import (
 	"github.com/sqreen/go-libsqreen/waf/types"
 )
 
-func newRuleImpl(id, rule string, maxLen, maxDepth uint64) (types.Rule, error) {
-	return bindings.NewRule(id, rule, maxLen, maxDepth)
+func newRule(rule string) (types.Rule, error) {
+	return bindings.NewRule(rule)
+}
+
+func newAdditiveContext(r types.Rule) types.Rule {
+	return bindings.NewAdditiveContext(r)
 }
 
 func version() *string {
 	return bindings.Version()
+}
+
+func health() error {
+	return bindings.Health()
 }
