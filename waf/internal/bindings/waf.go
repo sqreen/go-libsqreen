@@ -115,7 +115,7 @@ func (r Rule) Run(data types.DataSet, timeout time.Duration) (action types.Actio
 	}
 	defer wafValue.free()
 
-	ret := C.pw_runH(r.handle, C.PWArgs(wafValue), C.size_t(timeout/time.Microsecond))
+	ret := C.pw_runH(r.handle, C.PWArgs(wafValue), C.uint64_t(timeout/time.Microsecond))
 	defer C.pw_freeReturn(ret)
 
 	return goReturnValues(ret)
@@ -192,7 +192,7 @@ func (c *AdditiveContext) Run(data types.DataSet, timeout time.Duration) (action
 func (c *AdditiveContext) run(data WAFValue, timeout time.Duration) C.PWRet {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return C.pw_runAdditive(c.handle, C.PWArgs(data), C.size_t(timeout/time.Microsecond))
+	return C.pw_runAdditive(c.handle, C.PWArgs(data), C.uint64_t(timeout/time.Microsecond))
 }
 
 func (c *AdditiveContext) Close() error {
