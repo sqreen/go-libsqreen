@@ -1,7 +1,7 @@
 name: Agent Tests
 on:
-  tags:
   push:
+    tags: [ v0.* ]
     branches:
       - master
   pull_request:
