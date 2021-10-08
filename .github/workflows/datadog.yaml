@@ -1,0 +1,70 @@
+name: dd-trace-go
+on:
+  schedule:
+    - cron: "0 0 * * *"
+jobs:
+  native:
+    strategy:
+      matrix:
+        runs-on: [ macos-latest, ubuntu-latest, windows-latest ]
+        go-version: [ 1, 1.17, 1.16, 1.15, 1.14, 1.13, 1.12 ]
+        go-test-options:
+          - ""
+          - "-race"
+        cgo_enabled:
+          - 0 # test it compiles when cgo is disabled
+          - 1
+        cgocheck:
+          - 1
+          - 2
+      fail-fast: false
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: gopkg.in/DataDog/dd-trace-go.v1
+          ref: julio-guerra-appsec/waf
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - run: go get -d -t ./internal/appsec/...
+      - run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./...
+
+  # Same tests but on the official golang container for linux
+  # Docker for Windows is not yet available on Github Actions.
+  golang-linux-container:
+    strategy:
+      matrix:
+        go-version: [ 1, 1.17, 1.16, 1.15, 1.14, 1.13, 1.12 ]
+        distribution: [ bullseye, buster, alpine ]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    container:
+      image: golang:${{ matrix.go-version }}-${{ matrix.distribution }}
+    steps:
+      - uses: actions/checkout@v2
+          with:
+            repository: gopkg.in/DataDog/dd-trace-go.v1
+            ref: julio-guerra-appsec/waf
+      # Install gcc and the libc headers on alpine images
+      - if: ${{ matrix.distribution == 'alpine' }}
+        run: apk add gcc musl-dev libc6-compat git
+      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./...
+
+  # debian stretch doesn't have the latest go versions
+  golang-debian-stretch-container:
+    strategy:
+      matrix:
+        go-version: [ 1.14, 1.13, 1.12 ]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    container:
+      image: golang:${{ matrix.go-version }}-stretch
+    steps:
+      - uses: actions/checkout@v2
+          with:
+            repository: gopkg.in/DataDog/dd-trace-go.v1
+            ref: julio-guerra-appsec/waf
+      - run: go get -d -t ./internal/appsec/...
+      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./...
