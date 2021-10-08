@@ -46,12 +46,12 @@ jobs:
         go-test-options:
           - ""
           - "-race"
-          cgo_enabled:
-            - 0 # test it compiles when cgo is disabled
-            - 1
-          cgocheck:
-            - 1
-            - 2
+        cgo_enabled:
+          - 0 # test it compiles when cgo is disabled
+          - 1
+        cgocheck:
+          - 1
+          - 2
       fail-fast: false
     runs-on: ubuntu-latest
     container:
