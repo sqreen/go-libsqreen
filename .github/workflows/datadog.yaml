@@ -24,14 +24,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: gopkg.in/DataDog/dd-trace-go.v1
+          repository: DataDog/dd-trace-go
           ref: julio-guerra-appsec/waf
       - name: Setup go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
       - run: go get -d -t ./internal/appsec/...
-      - run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
+      - if: ${{ matrix.cgo_enabled == 1 }}
+        run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
+      - if: ${{ matrix.cgo_enabled == 0 }}
+          run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
 
   # Same tests but on the official golang container for linux
   # Docker for Windows is not yet available on Github Actions.
@@ -47,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: gopkg.in/DataDog/dd-trace-go.v1
+          repository: DataDog/dd-trace-go
           ref: julio-guerra-appsec/waf
       # Install gcc and the libc headers on alpine images
       - if: ${{ matrix.distribution == 'alpine' }}
@@ -66,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: gopkg.in/DataDog/dd-trace-go.v1
+          repository: DataDog/dd-trace-go
           ref: julio-guerra-appsec/waf
       - run: go get -d -t ./internal/appsec/...
       - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./internal/appsec/...
