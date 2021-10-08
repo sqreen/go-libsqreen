@@ -61,6 +61,7 @@ jobs:
         with:
           repository: DataDog/dd-trace-go
           ref: julio-guerra-appsec/waf
+      - run: go get -d -t ./internal/appsec/...
       # Install gcc and the libc headers on alpine images
       - if: ${{ matrix.distribution == 'alpine' }}
         run: apk add gcc musl-dev libc6-compat git
