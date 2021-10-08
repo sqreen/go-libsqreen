@@ -44,9 +44,9 @@ jobs:
       image: golang:${{ matrix.go-version }}-${{ matrix.distribution }}
     steps:
       - uses: actions/checkout@v2
-          with:
-            repository: gopkg.in/DataDog/dd-trace-go.v1
-            ref: julio-guerra-appsec/waf
+        with:
+          repository: gopkg.in/DataDog/dd-trace-go.v1
+          ref: julio-guerra-appsec/waf
       # Install gcc and the libc headers on alpine images
       - if: ${{ matrix.distribution == 'alpine' }}
         run: apk add gcc musl-dev libc6-compat git
@@ -63,8 +63,8 @@ jobs:
       image: golang:${{ matrix.go-version }}-stretch
     steps:
       - uses: actions/checkout@v2
-          with:
-            repository: gopkg.in/DataDog/dd-trace-go.v1
-            ref: julio-guerra-appsec/waf
+        with:
+          repository: gopkg.in/DataDog/dd-trace-go.v1
+          ref: julio-guerra-appsec/waf
       - run: go get -d -t ./internal/appsec/...
       - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./...
