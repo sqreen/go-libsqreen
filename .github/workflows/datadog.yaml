@@ -43,6 +43,15 @@ jobs:
       matrix:
         go-version: [ 1, 1.17, 1.16, 1.15, 1.14, 1.13, 1.12 ]
         distribution: [ bullseye, buster, alpine ]
+        go-test-options:
+          - ""
+          - "-race"
+          cgo_enabled:
+            - 0 # test it compiles when cgo is disabled
+            - 1
+          cgocheck:
+            - 1
+            - 2
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -55,7 +64,10 @@ jobs:
       # Install gcc and the libc headers on alpine images
       - if: ${{ matrix.distribution == 'alpine' }}
         run: apk add gcc musl-dev libc6-compat git
-      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./internal/appsec/...
+      - if: ${{ matrix.cgo_enabled == 1 }}
+        run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
+      - if: ${{ matrix.cgo_enabled == 0 }}
+        run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
 
   # debian stretch doesn't have the latest go versions
   golang-debian-stretch-container:
