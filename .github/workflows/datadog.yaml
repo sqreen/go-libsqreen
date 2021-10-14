@@ -19,6 +19,9 @@ jobs:
         build_tags:
           - ""
           - "appsec"
+        exclude:
+          - go-test-options: -race
+            cgo_enabled: 0
       fail-fast: false
     runs-on: ${{ matrix.runs-on }}
     steps:
@@ -31,8 +34,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - run: go get -d -t ./internal/appsec/...
-      - if: ${{ matrix.cgo_enabled != 0 }} && ${{ matrix.go-test-options != '-race' }}
-        run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
+      - run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
 
   # Same tests but on the official golang container for linux
   # Docker for Windows is not yet available on Github Actions.
@@ -50,6 +52,9 @@ jobs:
         build_tags:
           - ""
           - "appsec"
+        exclude:
+          - go-test-options: -race
+            cgo_enabled: 0
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -63,8 +68,7 @@ jobs:
       # Install gcc and the libc headers on alpine images
       - if: ${{ matrix.distribution == 'alpine' }}
         run: apk add gcc musl-dev libc6-compat git
-      - if: ${{ matrix.cgo_enabled != 0 }} && ${{ matrix.go-test-options != '-race' }}
-        run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
+      - run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
 
   # debian stretch doesn't have the latest go versions
   golang-debian-stretch-container:
@@ -80,6 +84,9 @@ jobs:
         build_tags:
           - ""
           - "appsec"
+        exclude:
+          - go-test-options: -race
+            cgo_enabled: 0
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -90,5 +97,4 @@ jobs:
           repository: DataDog/dd-trace-go
           ref: julio-guerra-appsec/waf
       - run: go get -d -t ./internal/appsec/...
-      - if: ${{ matrix.cgo_enabled != 0 }} && ${{ matrix.go-test-options != '-race' }}
-        run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
+      - run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
