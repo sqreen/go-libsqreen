@@ -16,9 +16,9 @@ jobs:
         cgo_enabled:
           - 0 # test it compiles when cgo is disabled
           - 1
-        cgocheck:
-          - 1
-          - 2
+        build_tags:
+          - ""
+          - "appsec"
       fail-fast: false
     runs-on: ${{ matrix.runs-on }}
     steps:
@@ -31,10 +31,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - run: go get -d -t ./internal/appsec/...
-      - if: ${{ matrix.cgo_enabled == 1 }}
-        run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
-      - if: ${{ matrix.cgo_enabled == 0 }}
-        run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
+      - run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
 
   # Same tests but on the official golang container for linux
   # Docker for Windows is not yet available on Github Actions.
@@ -49,9 +46,9 @@ jobs:
         cgo_enabled:
           - 0 # test it compiles when cgo is disabled
           - 1
-        cgocheck:
-          - 1
-          - 2
+        build_tags:
+          - ""
+          - "appsec"
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -65,16 +62,22 @@ jobs:
       # Install gcc and the libc headers on alpine images
       - if: ${{ matrix.distribution == 'alpine' }}
         run: apk add gcc musl-dev libc6-compat git
-      - if: ${{ matrix.cgo_enabled == 1 }}
-        run: env GODEBUG="cgocheck=${{ matrix.cgocheck }}" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
-      - if: ${{ matrix.cgo_enabled == 0 }}
-        run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ./internal/appsec/...
+      - run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
 
   # debian stretch doesn't have the latest go versions
   golang-debian-stretch-container:
     strategy:
       matrix:
         go-version: [ 1.14, 1.13 ]
+        go-test-options:
+          - ""
+          - "-race"
+        cgo_enabled:
+          - 0 # test it compiles when cgo is disabled
+          - 1
+        build_tags:
+          - ""
+          - "appsec"
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -85,4 +88,4 @@ jobs:
           repository: DataDog/dd-trace-go
           ref: julio-guerra-appsec/waf
       - run: go get -d -t ./internal/appsec/...
-      - run: env CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} ./internal/appsec/...
+      - run: env GODEBUG="cgocheck=2" CGO_ENABLED=${{ matrix.cgo_enabled }} go test ${{ matrix.go-test-options }} -tags "${{ matrix.build_tags }}" ./internal/appsec/...
